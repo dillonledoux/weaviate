@@ -148,11 +148,24 @@ func (e *Explorer) GetClass(ctx context.Context,
 		return nil, errors.Wrap(err, "cursor api: invalid 'after' parameter")
 	}
 
+	// When rank is set, overfetch to give rank room to reorder results.
+	// We reuse QueryHybridMaximumResults as the overfetch target; a dedicated
+	// config could be introduced if rank and hybrid need different candidate
+	// pool sizes.
+	originalLimit := params.Pagination.Limit
+	if params.Rank != nil && params.Rank.Weight > 0 {
+		overfetch := int(e.config.QueryHybridMaximumResults)
+		if overfetch > params.Pagination.Limit {
+			params.Pagination.Limit = overfetch
+		}
+	}
+
 	if params.KeywordRanking != nil {
 		res, err := e.getClassKeywordBased(ctx, params)
 		if err != nil {
 			return nil, err
 		}
+		res = e.applyRankIfNeeded(res, params.Rank, originalLimit, false)
 		return e.searchResultsToGetResponse(ctx, res, nil, params, searchStartTime)
 	}
 
@@ -161,14 +174,31 @@ func (e *Explorer) GetClass(ctx context.Context,
 		if err != nil {
 			return nil, err
 		}
+		res = e.applyRankIfNeeded(res, params.Rank, originalLimit, true)
 		return e.searchResultsToGetResponse(ctx, res, searchVector, params, searchStartTime)
 	}
 
+	// Hybrid and plain list searches go through getClassList, which handles
+	// Group workarounds, ListExploreAdditionalExtend, and usage tracking.
 	res, err := e.getClassList(ctx, params)
 	if err != nil {
 		return nil, err
 	}
+	res = e.applyRankIfNeeded(res, params.Rank, originalLimit, false)
 	return e.searchResultsToGetResponse(ctx, res, nil, params, searchStartTime)
+}
+
+// applyRankIfNeeded applies rank post-scoring when rank conditions are
+// present and weight > 0. For vector searches, distances are converted to
+// scores first since vector search populates Dist but not Score.
+func (e *Explorer) applyRankIfNeeded(res []search.Result, rank *filters.Rank, originalLimit int, isVectorSearch bool) []search.Result {
+	if rank == nil || rank.Weight <= 0 || len(res) == 0 {
+		return res
+	}
+	if isVectorSearch {
+		distToScore(res)
+	}
+	return applyRankScoring(res, rank, originalLimit)
 }
 
 func (e *Explorer) getClassKeywordBased(ctx context.Context, params dto.GetParams) ([]search.Result, error) {

@@ -376,6 +376,14 @@ func (p *Parser) Search(req *pb.SearchRequest, config *config.Config) (dto.GetPa
 		out.AdditionalProperties.ModuleParams["rerank"] = extractRerank(req)
 	}
 
+	if req.Rank != nil {
+		rank, err := p.extractRank(req.Rank, req.Collection, req.Tenant)
+		if err != nil {
+			return dto.GetParams{}, err
+		}
+		out.Rank = rank
+	}
+
 	if len(req.After) > 0 {
 		out.Cursor = &filters.Cursor{After: req.After, Limit: out.Pagination.Limit}
 	}
@@ -630,6 +638,101 @@ func extractRerank(req *pb.SearchRequest) *rank.Params {
 		rerank.Query = req.Rerank.Query
 	}
 	return &rerank
+}
+
+func (p *Parser) extractRank(rank *pb.Rank, className, tenant string) (*filters.Rank, error) {
+	if rank == nil {
+		return nil, nil
+	}
+
+	weight := float32(0.5)
+	if rank.Weight != nil {
+		weight = rank.GetWeight()
+	}
+
+	conditions := make([]filters.RankCondition, 0, len(rank.GetConditions()))
+	for i, cond := range rank.GetConditions() {
+		pc, err := p.extractRankCondition(cond, className, tenant, i)
+		if err != nil {
+			return nil, err
+		}
+		conditions = append(conditions, pc)
+	}
+
+	result := &filters.Rank{
+		Conditions: conditions,
+		Weight:     weight,
+	}
+
+	if err := filters.ValidateRank(result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (p *Parser) extractRankCondition(cond *pb.RankCondition, className, tenant string, idx int) (filters.RankCondition, error) {
+	weight := float32(1.0)
+	if cond.Weight != nil {
+		weight = cond.GetWeight()
+	}
+
+	pc := filters.RankCondition{
+		Weight: weight,
+	}
+
+	if cond.Filter != nil {
+		clause, err := ExtractFilters(cond.GetFilter(), p.authorizedGetClass, className, tenant)
+		if err != nil {
+			return filters.RankCondition{}, fmt.Errorf("rank condition[%d] filter: %w", idx, err)
+		}
+		pc.Filter = &filters.LocalFilter{Root: &clause}
+	}
+
+	if cond.Decay != nil {
+		decay, err := extractDecayFunction(cond.GetDecay(), idx)
+		if err != nil {
+			return filters.RankCondition{}, err
+		}
+		pc.Decay = decay
+	}
+
+	return pc, nil
+}
+
+func extractDecayFunction(d *pb.DecayFunction, condIdx int) (*filters.Decay, error) {
+	if d == nil {
+		return nil, nil
+	}
+
+	path := d.GetPath()
+	if len(path) == 0 {
+		return nil, fmt.Errorf("rank condition[%d] decay: path is required", condIdx)
+	}
+
+	curve := "exp"
+	if d.Curve != nil {
+		curve = d.GetCurve()
+	}
+
+	decayValue := float32(0.5)
+	if d.DecayValue != nil {
+		decayValue = d.GetDecayValue()
+	}
+
+	offset := "0"
+	if d.Offset != nil {
+		offset = d.GetOffset()
+	}
+
+	return &filters.Decay{
+		Path:       &filters.Path{Property: schema.PropertyName(path[0])},
+		Origin:     d.GetOrigin(),
+		Scale:      d.GetScale(),
+		Offset:     offset,
+		Curve:      curve,
+		DecayValue: decayValue,
+	}, nil
 }
 
 func extractNearText(classname string, limit int, nearTextIn *pb.NearTextSearch, targetVectors []string) (*nearText2.NearTextParams, error) {

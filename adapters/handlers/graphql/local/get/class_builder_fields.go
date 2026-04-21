@@ -241,7 +241,6 @@ func buildGetClassField(classObject *graphql.Object,
 
 	field.Args["bm25"] = bm25Argument(class.Class)
 	field.Args["hybrid"] = hybridArgument(classObject, class, modulesProvider, fusionEnum)
-
 	if modulesProvider != nil {
 		for name, argument := range modulesProvider.GetArguments(class) {
 			field.Args[name] = argument
