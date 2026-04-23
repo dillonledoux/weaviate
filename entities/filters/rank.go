@@ -21,6 +21,7 @@ import (
 type Rank struct {
 	Conditions []RankCondition
 	Weight     float32 // blending weight [0,1]: final = (1-w)*primary + w*rank, default 0.5
+	Depth      int     // candidate pool size for reranking; 0 means use default (100)
 }
 
 // RankCondition represents a single ranking condition. Exactly one of
@@ -65,6 +66,10 @@ func ValidateRank(rank *Rank) error {
 
 	if rank.Weight < 0 || rank.Weight > 1 {
 		return fmt.Errorf("rank: weight must be between 0 and 1, got %f", rank.Weight)
+	}
+
+	if rank.Depth < 0 {
+		return fmt.Errorf("rank: depth must be >= 0, got %d", rank.Depth)
 	}
 
 	for i, cond := range rank.Conditions {

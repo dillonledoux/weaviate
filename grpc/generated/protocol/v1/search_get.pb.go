@@ -1487,6 +1487,7 @@ type Rank struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Conditions    []*RankCondition       `protobuf:"bytes,1,rep,name=conditions,proto3" json:"conditions,omitempty"`
 	Weight        *float32               `protobuf:"fixed32,2,opt,name=weight,proto3,oneof" json:"weight,omitempty"`
+	Depth         *uint32                `protobuf:"varint,3,opt,name=depth,proto3,oneof" json:"depth,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1531,6 +1532,13 @@ func (x *Rank) GetConditions() []*RankCondition {
 func (x *Rank) GetWeight() float32 {
 	if x != nil && x.Weight != nil {
 		return *x.Weight
+	}
+	return 0
+}
+
+func (x *Rank) GetDepth() uint32 {
+	if x != nil && x.Depth != nil {
+		return *x.Depth
 	}
 	return 0
 }
@@ -1993,13 +2001,15 @@ const file_v1_search_get_proto_rawDesc = "" +
 	"\n" +
 	"properties\x18\x01 \x03(\v2\x1d.weaviate.v1.PropertiesResultR\n" +
 	"properties\x12\x1b\n" +
-	"\tprop_name\x18\x02 \x01(\tR\bpropName\"p\n" +
+	"\tprop_name\x18\x02 \x01(\tR\bpropName\"\x8f\x01\n" +
 	"\x04Rank\x12:\n" +
 	"\n" +
 	"conditions\x18\x01 \x03(\v2\x1a.weaviate.v1.RankConditionR\n" +
 	"conditions\x12\x1b\n" +
-	"\x06weight\x18\x02 \x01(\x02H\x00R\x06weight\x88\x01\x01B\t\n" +
-	"\a_weightJ\x04\b\x03\x10\x04\"\xb6\x01\n" +
+	"\x06weight\x18\x02 \x01(\x02H\x00R\x06weight\x88\x01\x01\x12\x19\n" +
+	"\x05depth\x18\x03 \x01(\rH\x01R\x05depth\x88\x01\x01B\t\n" +
+	"\a_weightB\b\n" +
+	"\x06_depth\"\xb6\x01\n" +
 	"\rRankCondition\x121\n" +
 	"\x06filter\x18\x01 \x01(\v2\x14.weaviate.v1.FiltersH\x00R\x06filter\x88\x01\x01\x125\n" +
 	"\x05decay\x18\x02 \x01(\v2\x1a.weaviate.v1.DecayFunctionH\x01R\x05decay\x88\x01\x01\x12\x1b\n" +
@@ -2032,50 +2042,53 @@ func file_v1_search_get_proto_rawDescGZIP() []byte {
 	return file_v1_search_get_proto_rawDescData
 }
 
-var file_v1_search_get_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
-var file_v1_search_get_proto_goTypes = []any{
-	(*SearchRequest)(nil),              // 0: weaviate.v1.SearchRequest
-	(*GroupBy)(nil),                    // 1: weaviate.v1.GroupBy
-	(*SortBy)(nil),                     // 2: weaviate.v1.SortBy
-	(*MetadataRequest)(nil),            // 3: weaviate.v1.MetadataRequest
-	(*PropertiesRequest)(nil),          // 4: weaviate.v1.PropertiesRequest
-	(*ObjectPropertiesRequest)(nil),    // 5: weaviate.v1.ObjectPropertiesRequest
-	(*RefPropertiesRequest)(nil),       // 6: weaviate.v1.RefPropertiesRequest
-	(*Rerank)(nil),                     // 7: weaviate.v1.Rerank
-	(*SearchReply)(nil),                // 8: weaviate.v1.SearchReply
-	(*QueryProfile)(nil),               // 9: weaviate.v1.QueryProfile
-	(*RerankReply)(nil),                // 10: weaviate.v1.RerankReply
-	(*GroupByResult)(nil),              // 11: weaviate.v1.GroupByResult
-	(*SearchResult)(nil),               // 12: weaviate.v1.SearchResult
-	(*MetadataResult)(nil),             // 13: weaviate.v1.MetadataResult
-	(*PropertiesResult)(nil),           // 14: weaviate.v1.PropertiesResult
-	(*RefPropertiesResult)(nil),        // 15: weaviate.v1.RefPropertiesResult
-	(*Rank)(nil),                       // 16: weaviate.v1.Rank
-	(*RankCondition)(nil),              // 17: weaviate.v1.RankCondition
-	(*DecayFunction)(nil),              // 18: weaviate.v1.DecayFunction
-	(*QueryProfile_SearchProfile)(nil), // 19: weaviate.v1.QueryProfile.SearchProfile
-	(*QueryProfile_ShardProfile)(nil),  // 20: weaviate.v1.QueryProfile.ShardProfile
-	nil,                                // 21: weaviate.v1.QueryProfile.SearchProfile.DetailsEntry
-	nil,                                // 22: weaviate.v1.QueryProfile.ShardProfile.SearchesEntry
-	(ConsistencyLevel)(0),              // 23: weaviate.v1.ConsistencyLevel
-	(*Filters)(nil),                    // 24: weaviate.v1.Filters
-	(*Hybrid)(nil),                     // 25: weaviate.v1.Hybrid
-	(*BM25)(nil),                       // 26: weaviate.v1.BM25
-	(*NearVector)(nil),                 // 27: weaviate.v1.NearVector
-	(*NearObject)(nil),                 // 28: weaviate.v1.NearObject
-	(*NearTextSearch)(nil),             // 29: weaviate.v1.NearTextSearch
-	(*NearImageSearch)(nil),            // 30: weaviate.v1.NearImageSearch
-	(*NearAudioSearch)(nil),            // 31: weaviate.v1.NearAudioSearch
-	(*NearVideoSearch)(nil),            // 32: weaviate.v1.NearVideoSearch
-	(*NearDepthSearch)(nil),            // 33: weaviate.v1.NearDepthSearch
-	(*NearThermalSearch)(nil),          // 34: weaviate.v1.NearThermalSearch
-	(*NearIMUSearch)(nil),              // 35: weaviate.v1.NearIMUSearch
-	(*GenerativeSearch)(nil),           // 36: weaviate.v1.GenerativeSearch
-	(*GenerativeResult)(nil),           // 37: weaviate.v1.GenerativeResult
-	(*GenerativeReply)(nil),            // 38: weaviate.v1.GenerativeReply
-	(*Vectors)(nil),                    // 39: weaviate.v1.Vectors
-	(*Properties)(nil),                 // 40: weaviate.v1.Properties
-}
+var (
+	file_v1_search_get_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+	file_v1_search_get_proto_goTypes  = []any{
+		(*SearchRequest)(nil),              // 0: weaviate.v1.SearchRequest
+		(*GroupBy)(nil),                    // 1: weaviate.v1.GroupBy
+		(*SortBy)(nil),                     // 2: weaviate.v1.SortBy
+		(*MetadataRequest)(nil),            // 3: weaviate.v1.MetadataRequest
+		(*PropertiesRequest)(nil),          // 4: weaviate.v1.PropertiesRequest
+		(*ObjectPropertiesRequest)(nil),    // 5: weaviate.v1.ObjectPropertiesRequest
+		(*RefPropertiesRequest)(nil),       // 6: weaviate.v1.RefPropertiesRequest
+		(*Rerank)(nil),                     // 7: weaviate.v1.Rerank
+		(*SearchReply)(nil),                // 8: weaviate.v1.SearchReply
+		(*QueryProfile)(nil),               // 9: weaviate.v1.QueryProfile
+		(*RerankReply)(nil),                // 10: weaviate.v1.RerankReply
+		(*GroupByResult)(nil),              // 11: weaviate.v1.GroupByResult
+		(*SearchResult)(nil),               // 12: weaviate.v1.SearchResult
+		(*MetadataResult)(nil),             // 13: weaviate.v1.MetadataResult
+		(*PropertiesResult)(nil),           // 14: weaviate.v1.PropertiesResult
+		(*RefPropertiesResult)(nil),        // 15: weaviate.v1.RefPropertiesResult
+		(*Rank)(nil),                       // 16: weaviate.v1.Rank
+		(*RankCondition)(nil),              // 17: weaviate.v1.RankCondition
+		(*DecayFunction)(nil),              // 18: weaviate.v1.DecayFunction
+		(*QueryProfile_SearchProfile)(nil), // 19: weaviate.v1.QueryProfile.SearchProfile
+		(*QueryProfile_ShardProfile)(nil),  // 20: weaviate.v1.QueryProfile.ShardProfile
+		nil,                                // 21: weaviate.v1.QueryProfile.SearchProfile.DetailsEntry
+		nil,                                // 22: weaviate.v1.QueryProfile.ShardProfile.SearchesEntry
+		(ConsistencyLevel)(0),              // 23: weaviate.v1.ConsistencyLevel
+		(*Filters)(nil),                    // 24: weaviate.v1.Filters
+		(*Hybrid)(nil),                     // 25: weaviate.v1.Hybrid
+		(*BM25)(nil),                       // 26: weaviate.v1.BM25
+		(*NearVector)(nil),                 // 27: weaviate.v1.NearVector
+		(*NearObject)(nil),                 // 28: weaviate.v1.NearObject
+		(*NearTextSearch)(nil),             // 29: weaviate.v1.NearTextSearch
+		(*NearImageSearch)(nil),            // 30: weaviate.v1.NearImageSearch
+		(*NearAudioSearch)(nil),            // 31: weaviate.v1.NearAudioSearch
+		(*NearVideoSearch)(nil),            // 32: weaviate.v1.NearVideoSearch
+		(*NearDepthSearch)(nil),            // 33: weaviate.v1.NearDepthSearch
+		(*NearThermalSearch)(nil),          // 34: weaviate.v1.NearThermalSearch
+		(*NearIMUSearch)(nil),              // 35: weaviate.v1.NearIMUSearch
+		(*GenerativeSearch)(nil),           // 36: weaviate.v1.GenerativeSearch
+		(*GenerativeResult)(nil),           // 37: weaviate.v1.GenerativeResult
+		(*GenerativeReply)(nil),            // 38: weaviate.v1.GenerativeReply
+		(*Vectors)(nil),                    // 39: weaviate.v1.Vectors
+		(*Properties)(nil),                 // 40: weaviate.v1.Properties
+	}
+)
+
 var file_v1_search_get_proto_depIdxs = []int32{
 	23, // 0: weaviate.v1.SearchRequest.consistency_level:type_name -> weaviate.v1.ConsistencyLevel
 	4,  // 1: weaviate.v1.SearchRequest.properties:type_name -> weaviate.v1.PropertiesRequest

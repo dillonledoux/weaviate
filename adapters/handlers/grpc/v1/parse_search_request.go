@@ -659,9 +659,15 @@ func (p *Parser) extractRank(rank *pb.Rank, className, tenant string) (*filters.
 		conditions = append(conditions, pc)
 	}
 
+	var depth int
+	if rank.Depth != nil {
+		depth = int(rank.GetDepth())
+	}
+
 	result := &filters.Rank{
 		Conditions: conditions,
 		Weight:     weight,
+		Depth:      depth,
 	}
 
 	if err := filters.ValidateRank(result); err != nil {

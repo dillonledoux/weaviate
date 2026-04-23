@@ -218,7 +218,7 @@ message RefPropertiesResult {
 message Rank {
   repeated RankCondition conditions = 1;
   optional float weight = 2;
-  reserved 3;
+  optional uint32 depth = 3;
 }
 
 message RankCondition {

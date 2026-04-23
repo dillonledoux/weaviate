@@ -45,6 +45,10 @@ import (
 
 var _NUMCPU = runtime.GOMAXPROCS(0)
 
+// DefaultRankDepth is the default candidate pool size for rank reranking
+// when Rank.Depth is not explicitly set (0).
+const DefaultRankDepth = 100
+
 // Explorer is a helper construct to perform vector-based searches. It does not
 // contain monitoring or authorization checks. It should thus never be directly
 // used by an API, but through a Traverser.
@@ -149,12 +153,17 @@ func (e *Explorer) GetClass(ctx context.Context,
 	}
 
 	// When rank is set, overfetch to give rank room to reorder results.
-	// We reuse QueryHybridMaximumResults as the overfetch target; a dedicated
-	// config could be introduced if rank and hybrid need different candidate
-	// pool sizes.
+	// The candidate pool size is controlled by rank.Depth (per-query) with
+	// a default of DefaultRankDepth. Capped at QueryMaximumResults.
 	originalLimit := params.Pagination.Limit
 	if params.Rank != nil && params.Rank.Weight > 0 {
-		overfetch := int(e.config.QueryHybridMaximumResults)
+		overfetch := params.Rank.Depth
+		if overfetch == 0 {
+			overfetch = DefaultRankDepth
+		}
+		if overfetch > int(e.config.QueryMaximumResults) {
+			overfetch = int(e.config.QueryMaximumResults)
+		}
 		if overfetch > params.Pagination.Limit {
 			params.Pagination.Limit = overfetch
 		}

@@ -125,6 +125,27 @@ func TestValidateRank(t *testing.T) {
 			errMsg:  "curve must be one of",
 		},
 		{
+			name: "negative depth returns error",
+			rank: &Rank{
+				Depth: -1,
+				Conditions: []RankCondition{
+					{Filter: &LocalFilter{}, Weight: 1.0},
+				},
+			},
+			wantErr: true,
+			errMsg:  "depth must be >= 0",
+		},
+		{
+			name: "positive depth is valid",
+			rank: &Rank{
+				Depth: 500,
+				Conditions: []RankCondition{
+					{Filter: &LocalFilter{}, Weight: 1.0},
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "valid filter condition returns no error",
 			rank: &Rank{
 				Weight: 0.5,
