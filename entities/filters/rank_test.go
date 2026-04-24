@@ -48,14 +48,14 @@ func TestValidateRank(t *testing.T) {
 			errMsg:  "weight must be between 0 and 1",
 		},
 		{
-			name: "condition with neither filter nor decay returns error",
+			name: "condition with none set returns error",
 			rank: &Rank{
 				Conditions: []RankCondition{
 					{Weight: 1.0},
 				},
 			},
 			wantErr: true,
-			errMsg:  "exactly one of 'filter' or 'decay' must be set",
+			errMsg:  "exactly one of 'filter', 'decay', or 'property_value' must be set",
 		},
 		{
 			name: "condition with both filter and decay returns error",
@@ -68,7 +68,7 @@ func TestValidateRank(t *testing.T) {
 				},
 			},
 			wantErr: true,
-			errMsg:  "both are set",
+			errMsg:  "exactly one of 'filter', 'decay', or 'property_value' must be set",
 		},
 		{
 			name: "condition with negative weight is valid",
@@ -90,14 +90,13 @@ func TestValidateRank(t *testing.T) {
 			errMsg:  "path is required",
 		},
 		{
-			name: "decay with missing origin returns error",
+			name: "decay with missing origin is valid (defaults to now for dates)",
 			rank: &Rank{
 				Conditions: []RankCondition{
-					{Decay: &Decay{Path: &Path{Property: "age"}, Scale: "10"}},
+					{Decay: &Decay{Path: &Path{Property: "created_at"}, Scale: "7d"}},
 				},
 			},
-			wantErr: true,
-			errMsg:  "origin is required",
+			wantErr: false,
 		},
 		{
 			name: "decay with missing scale returns error",
@@ -144,6 +143,54 @@ func TestValidateRank(t *testing.T) {
 				},
 			},
 			wantErr: false,
+		},
+		{
+			name: "property_value with missing path returns error",
+			rank: &Rank{
+				Conditions: []RankCondition{
+					{PropertyValue: &PropertyValue{Modifier: "log1p"}},
+				},
+			},
+			wantErr: true,
+			errMsg:  "path is required",
+		},
+		{
+			name: "property_value with invalid modifier returns error",
+			rank: &Rank{
+				Conditions: []RankCondition{
+					{PropertyValue: &PropertyValue{
+						Path:     &Path{Property: "likes"},
+						Modifier: "invalid",
+					}},
+				},
+			},
+			wantErr: true,
+			errMsg:  "modifier must be one of",
+		},
+		{
+			name: "valid property_value condition",
+			rank: &Rank{
+				Conditions: []RankCondition{
+					{PropertyValue: &PropertyValue{
+						Path:     &Path{Property: "likes"},
+						Modifier: "log1p",
+					}},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "condition with filter and property_value returns error",
+			rank: &Rank{
+				Conditions: []RankCondition{
+					{
+						Filter:        &LocalFilter{},
+						PropertyValue: &PropertyValue{Path: &Path{Property: "likes"}},
+					},
+				},
+			},
+			wantErr: true,
+			errMsg:  "exactly one of",
 		},
 		{
 			name: "valid filter condition returns no error",

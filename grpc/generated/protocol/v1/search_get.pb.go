@@ -1548,6 +1548,7 @@ type RankCondition struct {
 	Filter        *Filters               `protobuf:"bytes,1,opt,name=filter,proto3,oneof" json:"filter,omitempty"`
 	Decay         *DecayFunction         `protobuf:"bytes,2,opt,name=decay,proto3,oneof" json:"decay,omitempty"`
 	Weight        *float32               `protobuf:"fixed32,3,opt,name=weight,proto3,oneof" json:"weight,omitempty"`
+	PropertyValue *PropertyValueFunction `protobuf:"bytes,4,opt,name=property_value,json=propertyValue,proto3,oneof" json:"property_value,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1603,6 +1604,66 @@ func (x *RankCondition) GetWeight() float32 {
 	return 0
 }
 
+func (x *RankCondition) GetPropertyValue() *PropertyValueFunction {
+	if x != nil {
+		return x.PropertyValue
+	}
+	return nil
+}
+
+type PropertyValueFunction struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// protolint:disable:next REPEATED_FIELD_NAMES_PLURALIZED
+	Path          []string `protobuf:"bytes,1,rep,name=path,proto3" json:"path,omitempty"`
+	Modifier      *string  `protobuf:"bytes,2,opt,name=modifier,proto3,oneof" json:"modifier,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PropertyValueFunction) Reset() {
+	*x = PropertyValueFunction{}
+	mi := &file_v1_search_get_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PropertyValueFunction) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PropertyValueFunction) ProtoMessage() {}
+
+func (x *PropertyValueFunction) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_search_get_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PropertyValueFunction.ProtoReflect.Descriptor instead.
+func (*PropertyValueFunction) Descriptor() ([]byte, []int) {
+	return file_v1_search_get_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *PropertyValueFunction) GetPath() []string {
+	if x != nil {
+		return x.Path
+	}
+	return nil
+}
+
+func (x *PropertyValueFunction) GetModifier() string {
+	if x != nil && x.Modifier != nil {
+		return *x.Modifier
+	}
+	return ""
+}
+
 type DecayFunction struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// protolint:disable:next REPEATED_FIELD_NAMES_PLURALIZED
@@ -1618,7 +1679,7 @@ type DecayFunction struct {
 
 func (x *DecayFunction) Reset() {
 	*x = DecayFunction{}
-	mi := &file_v1_search_get_proto_msgTypes[18]
+	mi := &file_v1_search_get_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1630,7 +1691,7 @@ func (x *DecayFunction) String() string {
 func (*DecayFunction) ProtoMessage() {}
 
 func (x *DecayFunction) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_search_get_proto_msgTypes[18]
+	mi := &file_v1_search_get_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1643,7 +1704,7 @@ func (x *DecayFunction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DecayFunction.ProtoReflect.Descriptor instead.
 func (*DecayFunction) Descriptor() ([]byte, []int) {
-	return file_v1_search_get_proto_rawDescGZIP(), []int{18}
+	return file_v1_search_get_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DecayFunction) GetPath() []string {
@@ -1699,7 +1760,7 @@ type QueryProfile_SearchProfile struct {
 
 func (x *QueryProfile_SearchProfile) Reset() {
 	*x = QueryProfile_SearchProfile{}
-	mi := &file_v1_search_get_proto_msgTypes[19]
+	mi := &file_v1_search_get_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1711,7 +1772,7 @@ func (x *QueryProfile_SearchProfile) String() string {
 func (*QueryProfile_SearchProfile) ProtoMessage() {}
 
 func (x *QueryProfile_SearchProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_search_get_proto_msgTypes[19]
+	mi := &file_v1_search_get_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1749,7 +1810,7 @@ type QueryProfile_ShardProfile struct {
 
 func (x *QueryProfile_ShardProfile) Reset() {
 	*x = QueryProfile_ShardProfile{}
-	mi := &file_v1_search_get_proto_msgTypes[20]
+	mi := &file_v1_search_get_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1761,7 +1822,7 @@ func (x *QueryProfile_ShardProfile) String() string {
 func (*QueryProfile_ShardProfile) ProtoMessage() {}
 
 func (x *QueryProfile_ShardProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_search_get_proto_msgTypes[20]
+	mi := &file_v1_search_get_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2009,14 +2070,20 @@ const file_v1_search_get_proto_rawDesc = "" +
 	"\x06weight\x18\x02 \x01(\x02H\x00R\x06weight\x88\x01\x01\x12\x19\n" +
 	"\x05depth\x18\x03 \x01(\rH\x01R\x05depth\x88\x01\x01B\t\n" +
 	"\a_weightB\b\n" +
-	"\x06_depth\"\xb6\x01\n" +
+	"\x06_depth\"\x99\x02\n" +
 	"\rRankCondition\x121\n" +
 	"\x06filter\x18\x01 \x01(\v2\x14.weaviate.v1.FiltersH\x00R\x06filter\x88\x01\x01\x125\n" +
 	"\x05decay\x18\x02 \x01(\v2\x1a.weaviate.v1.DecayFunctionH\x01R\x05decay\x88\x01\x01\x12\x1b\n" +
-	"\x06weight\x18\x03 \x01(\x02H\x02R\x06weight\x88\x01\x01B\t\n" +
+	"\x06weight\x18\x03 \x01(\x02H\x02R\x06weight\x88\x01\x01\x12N\n" +
+	"\x0eproperty_value\x18\x04 \x01(\v2\".weaviate.v1.PropertyValueFunctionH\x03R\rpropertyValue\x88\x01\x01B\t\n" +
 	"\a_filterB\b\n" +
 	"\x06_decayB\t\n" +
-	"\a_weight\"\xd4\x01\n" +
+	"\a_weightB\x11\n" +
+	"\x0f_property_value\"Y\n" +
+	"\x15PropertyValueFunction\x12\x12\n" +
+	"\x04path\x18\x01 \x03(\tR\x04path\x12\x1f\n" +
+	"\bmodifier\x18\x02 \x01(\tH\x00R\bmodifier\x88\x01\x01B\v\n" +
+	"\t_modifier\"\xd4\x01\n" +
 	"\rDecayFunction\x12\x12\n" +
 	"\x04path\x18\x01 \x03(\tR\x04path\x12\x16\n" +
 	"\x06origin\x18\x02 \x01(\tR\x06origin\x12\x14\n" +
@@ -2043,7 +2110,7 @@ func file_v1_search_get_proto_rawDescGZIP() []byte {
 }
 
 var (
-	file_v1_search_get_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+	file_v1_search_get_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 	file_v1_search_get_proto_goTypes  = []any{
 		(*SearchRequest)(nil),              // 0: weaviate.v1.SearchRequest
 		(*GroupBy)(nil),                    // 1: weaviate.v1.GroupBy
@@ -2063,51 +2130,52 @@ var (
 		(*RefPropertiesResult)(nil),        // 15: weaviate.v1.RefPropertiesResult
 		(*Rank)(nil),                       // 16: weaviate.v1.Rank
 		(*RankCondition)(nil),              // 17: weaviate.v1.RankCondition
-		(*DecayFunction)(nil),              // 18: weaviate.v1.DecayFunction
-		(*QueryProfile_SearchProfile)(nil), // 19: weaviate.v1.QueryProfile.SearchProfile
-		(*QueryProfile_ShardProfile)(nil),  // 20: weaviate.v1.QueryProfile.ShardProfile
-		nil,                                // 21: weaviate.v1.QueryProfile.SearchProfile.DetailsEntry
-		nil,                                // 22: weaviate.v1.QueryProfile.ShardProfile.SearchesEntry
-		(ConsistencyLevel)(0),              // 23: weaviate.v1.ConsistencyLevel
-		(*Filters)(nil),                    // 24: weaviate.v1.Filters
-		(*Hybrid)(nil),                     // 25: weaviate.v1.Hybrid
-		(*BM25)(nil),                       // 26: weaviate.v1.BM25
-		(*NearVector)(nil),                 // 27: weaviate.v1.NearVector
-		(*NearObject)(nil),                 // 28: weaviate.v1.NearObject
-		(*NearTextSearch)(nil),             // 29: weaviate.v1.NearTextSearch
-		(*NearImageSearch)(nil),            // 30: weaviate.v1.NearImageSearch
-		(*NearAudioSearch)(nil),            // 31: weaviate.v1.NearAudioSearch
-		(*NearVideoSearch)(nil),            // 32: weaviate.v1.NearVideoSearch
-		(*NearDepthSearch)(nil),            // 33: weaviate.v1.NearDepthSearch
-		(*NearThermalSearch)(nil),          // 34: weaviate.v1.NearThermalSearch
-		(*NearIMUSearch)(nil),              // 35: weaviate.v1.NearIMUSearch
-		(*GenerativeSearch)(nil),           // 36: weaviate.v1.GenerativeSearch
-		(*GenerativeResult)(nil),           // 37: weaviate.v1.GenerativeResult
-		(*GenerativeReply)(nil),            // 38: weaviate.v1.GenerativeReply
-		(*Vectors)(nil),                    // 39: weaviate.v1.Vectors
-		(*Properties)(nil),                 // 40: weaviate.v1.Properties
+		(*PropertyValueFunction)(nil),      // 18: weaviate.v1.PropertyValueFunction
+		(*DecayFunction)(nil),              // 19: weaviate.v1.DecayFunction
+		(*QueryProfile_SearchProfile)(nil), // 20: weaviate.v1.QueryProfile.SearchProfile
+		(*QueryProfile_ShardProfile)(nil),  // 21: weaviate.v1.QueryProfile.ShardProfile
+		nil,                                // 22: weaviate.v1.QueryProfile.SearchProfile.DetailsEntry
+		nil,                                // 23: weaviate.v1.QueryProfile.ShardProfile.SearchesEntry
+		(ConsistencyLevel)(0),              // 24: weaviate.v1.ConsistencyLevel
+		(*Filters)(nil),                    // 25: weaviate.v1.Filters
+		(*Hybrid)(nil),                     // 26: weaviate.v1.Hybrid
+		(*BM25)(nil),                       // 27: weaviate.v1.BM25
+		(*NearVector)(nil),                 // 28: weaviate.v1.NearVector
+		(*NearObject)(nil),                 // 29: weaviate.v1.NearObject
+		(*NearTextSearch)(nil),             // 30: weaviate.v1.NearTextSearch
+		(*NearImageSearch)(nil),            // 31: weaviate.v1.NearImageSearch
+		(*NearAudioSearch)(nil),            // 32: weaviate.v1.NearAudioSearch
+		(*NearVideoSearch)(nil),            // 33: weaviate.v1.NearVideoSearch
+		(*NearDepthSearch)(nil),            // 34: weaviate.v1.NearDepthSearch
+		(*NearThermalSearch)(nil),          // 35: weaviate.v1.NearThermalSearch
+		(*NearIMUSearch)(nil),              // 36: weaviate.v1.NearIMUSearch
+		(*GenerativeSearch)(nil),           // 37: weaviate.v1.GenerativeSearch
+		(*GenerativeResult)(nil),           // 38: weaviate.v1.GenerativeResult
+		(*GenerativeReply)(nil),            // 39: weaviate.v1.GenerativeReply
+		(*Vectors)(nil),                    // 40: weaviate.v1.Vectors
+		(*Properties)(nil),                 // 41: weaviate.v1.Properties
 	}
 )
 
 var file_v1_search_get_proto_depIdxs = []int32{
-	23, // 0: weaviate.v1.SearchRequest.consistency_level:type_name -> weaviate.v1.ConsistencyLevel
+	24, // 0: weaviate.v1.SearchRequest.consistency_level:type_name -> weaviate.v1.ConsistencyLevel
 	4,  // 1: weaviate.v1.SearchRequest.properties:type_name -> weaviate.v1.PropertiesRequest
 	3,  // 2: weaviate.v1.SearchRequest.metadata:type_name -> weaviate.v1.MetadataRequest
 	1,  // 3: weaviate.v1.SearchRequest.group_by:type_name -> weaviate.v1.GroupBy
 	2,  // 4: weaviate.v1.SearchRequest.sort_by:type_name -> weaviate.v1.SortBy
-	24, // 5: weaviate.v1.SearchRequest.filters:type_name -> weaviate.v1.Filters
-	25, // 6: weaviate.v1.SearchRequest.hybrid_search:type_name -> weaviate.v1.Hybrid
-	26, // 7: weaviate.v1.SearchRequest.bm25_search:type_name -> weaviate.v1.BM25
-	27, // 8: weaviate.v1.SearchRequest.near_vector:type_name -> weaviate.v1.NearVector
-	28, // 9: weaviate.v1.SearchRequest.near_object:type_name -> weaviate.v1.NearObject
-	29, // 10: weaviate.v1.SearchRequest.near_text:type_name -> weaviate.v1.NearTextSearch
-	30, // 11: weaviate.v1.SearchRequest.near_image:type_name -> weaviate.v1.NearImageSearch
-	31, // 12: weaviate.v1.SearchRequest.near_audio:type_name -> weaviate.v1.NearAudioSearch
-	32, // 13: weaviate.v1.SearchRequest.near_video:type_name -> weaviate.v1.NearVideoSearch
-	33, // 14: weaviate.v1.SearchRequest.near_depth:type_name -> weaviate.v1.NearDepthSearch
-	34, // 15: weaviate.v1.SearchRequest.near_thermal:type_name -> weaviate.v1.NearThermalSearch
-	35, // 16: weaviate.v1.SearchRequest.near_imu:type_name -> weaviate.v1.NearIMUSearch
-	36, // 17: weaviate.v1.SearchRequest.generative:type_name -> weaviate.v1.GenerativeSearch
+	25, // 5: weaviate.v1.SearchRequest.filters:type_name -> weaviate.v1.Filters
+	26, // 6: weaviate.v1.SearchRequest.hybrid_search:type_name -> weaviate.v1.Hybrid
+	27, // 7: weaviate.v1.SearchRequest.bm25_search:type_name -> weaviate.v1.BM25
+	28, // 8: weaviate.v1.SearchRequest.near_vector:type_name -> weaviate.v1.NearVector
+	29, // 9: weaviate.v1.SearchRequest.near_object:type_name -> weaviate.v1.NearObject
+	30, // 10: weaviate.v1.SearchRequest.near_text:type_name -> weaviate.v1.NearTextSearch
+	31, // 11: weaviate.v1.SearchRequest.near_image:type_name -> weaviate.v1.NearImageSearch
+	32, // 12: weaviate.v1.SearchRequest.near_audio:type_name -> weaviate.v1.NearAudioSearch
+	33, // 13: weaviate.v1.SearchRequest.near_video:type_name -> weaviate.v1.NearVideoSearch
+	34, // 14: weaviate.v1.SearchRequest.near_depth:type_name -> weaviate.v1.NearDepthSearch
+	35, // 15: weaviate.v1.SearchRequest.near_thermal:type_name -> weaviate.v1.NearThermalSearch
+	36, // 16: weaviate.v1.SearchRequest.near_imu:type_name -> weaviate.v1.NearIMUSearch
+	37, // 17: weaviate.v1.SearchRequest.generative:type_name -> weaviate.v1.GenerativeSearch
 	7,  // 18: weaviate.v1.SearchRequest.rerank:type_name -> weaviate.v1.Rerank
 	16, // 19: weaviate.v1.SearchRequest.rank:type_name -> weaviate.v1.Rank
 	6,  // 20: weaviate.v1.PropertiesRequest.ref_properties:type_name -> weaviate.v1.RefPropertiesRequest
@@ -2117,32 +2185,33 @@ var file_v1_search_get_proto_depIdxs = []int32{
 	3,  // 24: weaviate.v1.RefPropertiesRequest.metadata:type_name -> weaviate.v1.MetadataRequest
 	12, // 25: weaviate.v1.SearchReply.results:type_name -> weaviate.v1.SearchResult
 	11, // 26: weaviate.v1.SearchReply.group_by_results:type_name -> weaviate.v1.GroupByResult
-	37, // 27: weaviate.v1.SearchReply.generative_grouped_results:type_name -> weaviate.v1.GenerativeResult
+	38, // 27: weaviate.v1.SearchReply.generative_grouped_results:type_name -> weaviate.v1.GenerativeResult
 	9,  // 28: weaviate.v1.SearchReply.query_profile:type_name -> weaviate.v1.QueryProfile
-	20, // 29: weaviate.v1.QueryProfile.shards:type_name -> weaviate.v1.QueryProfile.ShardProfile
+	21, // 29: weaviate.v1.QueryProfile.shards:type_name -> weaviate.v1.QueryProfile.ShardProfile
 	12, // 30: weaviate.v1.GroupByResult.objects:type_name -> weaviate.v1.SearchResult
 	10, // 31: weaviate.v1.GroupByResult.rerank:type_name -> weaviate.v1.RerankReply
-	38, // 32: weaviate.v1.GroupByResult.generative:type_name -> weaviate.v1.GenerativeReply
-	37, // 33: weaviate.v1.GroupByResult.generative_result:type_name -> weaviate.v1.GenerativeResult
+	39, // 32: weaviate.v1.GroupByResult.generative:type_name -> weaviate.v1.GenerativeReply
+	38, // 33: weaviate.v1.GroupByResult.generative_result:type_name -> weaviate.v1.GenerativeResult
 	14, // 34: weaviate.v1.SearchResult.properties:type_name -> weaviate.v1.PropertiesResult
 	13, // 35: weaviate.v1.SearchResult.metadata:type_name -> weaviate.v1.MetadataResult
-	37, // 36: weaviate.v1.SearchResult.generative:type_name -> weaviate.v1.GenerativeResult
-	39, // 37: weaviate.v1.MetadataResult.vectors:type_name -> weaviate.v1.Vectors
+	38, // 36: weaviate.v1.SearchResult.generative:type_name -> weaviate.v1.GenerativeResult
+	40, // 37: weaviate.v1.MetadataResult.vectors:type_name -> weaviate.v1.Vectors
 	15, // 38: weaviate.v1.PropertiesResult.ref_props:type_name -> weaviate.v1.RefPropertiesResult
 	13, // 39: weaviate.v1.PropertiesResult.metadata:type_name -> weaviate.v1.MetadataResult
-	40, // 40: weaviate.v1.PropertiesResult.non_ref_props:type_name -> weaviate.v1.Properties
+	41, // 40: weaviate.v1.PropertiesResult.non_ref_props:type_name -> weaviate.v1.Properties
 	14, // 41: weaviate.v1.RefPropertiesResult.properties:type_name -> weaviate.v1.PropertiesResult
 	17, // 42: weaviate.v1.Rank.conditions:type_name -> weaviate.v1.RankCondition
-	24, // 43: weaviate.v1.RankCondition.filter:type_name -> weaviate.v1.Filters
-	18, // 44: weaviate.v1.RankCondition.decay:type_name -> weaviate.v1.DecayFunction
-	21, // 45: weaviate.v1.QueryProfile.SearchProfile.details:type_name -> weaviate.v1.QueryProfile.SearchProfile.DetailsEntry
-	22, // 46: weaviate.v1.QueryProfile.ShardProfile.searches:type_name -> weaviate.v1.QueryProfile.ShardProfile.SearchesEntry
-	19, // 47: weaviate.v1.QueryProfile.ShardProfile.SearchesEntry.value:type_name -> weaviate.v1.QueryProfile.SearchProfile
-	48, // [48:48] is the sub-list for method output_type
-	48, // [48:48] is the sub-list for method input_type
-	48, // [48:48] is the sub-list for extension type_name
-	48, // [48:48] is the sub-list for extension extendee
-	0,  // [0:48] is the sub-list for field type_name
+	25, // 43: weaviate.v1.RankCondition.filter:type_name -> weaviate.v1.Filters
+	19, // 44: weaviate.v1.RankCondition.decay:type_name -> weaviate.v1.DecayFunction
+	18, // 45: weaviate.v1.RankCondition.property_value:type_name -> weaviate.v1.PropertyValueFunction
+	22, // 46: weaviate.v1.QueryProfile.SearchProfile.details:type_name -> weaviate.v1.QueryProfile.SearchProfile.DetailsEntry
+	23, // 47: weaviate.v1.QueryProfile.ShardProfile.searches:type_name -> weaviate.v1.QueryProfile.ShardProfile.SearchesEntry
+	20, // 48: weaviate.v1.QueryProfile.ShardProfile.SearchesEntry.value:type_name -> weaviate.v1.QueryProfile.SearchProfile
+	49, // [49:49] is the sub-list for method output_type
+	49, // [49:49] is the sub-list for method input_type
+	49, // [49:49] is the sub-list for extension type_name
+	49, // [49:49] is the sub-list for extension extendee
+	0,  // [0:49] is the sub-list for field type_name
 }
 
 func init() { file_v1_search_get_proto_init() }
@@ -2163,13 +2232,14 @@ func file_v1_search_get_proto_init() {
 	file_v1_search_get_proto_msgTypes[16].OneofWrappers = []any{}
 	file_v1_search_get_proto_msgTypes[17].OneofWrappers = []any{}
 	file_v1_search_get_proto_msgTypes[18].OneofWrappers = []any{}
+	file_v1_search_get_proto_msgTypes[19].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_v1_search_get_proto_rawDesc), len(file_v1_search_get_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

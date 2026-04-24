@@ -25,11 +25,20 @@ type Rank struct {
 }
 
 // RankCondition represents a single ranking condition. Exactly one of
-// Filter or Decay must be set.
+// Filter, Decay, or PropertyValue must be set.
 type RankCondition struct {
-	Filter *LocalFilter // binary: 1 if match, 0 if not
-	Decay  *Decay       // continuous: distance-based [0,1]
-	Weight float32      // per-condition weight, default 1.0; negative values demote
+	Filter        *LocalFilter   // binary: 1 if match, 0 if not
+	Decay         *Decay         // continuous: distance-based [0,1]
+	PropertyValue *PropertyValue // continuous: score proportional to property value
+	Weight        float32        // per-condition weight, default 1.0; negative values demote
+}
+
+// PropertyValue defines a scoring function that produces a score proportional to
+// a numeric property's value. The raw values are normalized to [0,1] across
+// the result set using min-max normalization after applying the modifier.
+type PropertyValue struct {
+	Path     *Path
+	Modifier string // "none" (default), "log1p", "sqrt"
 }
 
 // Decay defines a distance-based scoring function that produces a continuous
@@ -84,22 +93,32 @@ func ValidateRank(rank *Rank) error {
 func validateRankCondition(cond RankCondition, idx int) error {
 	hasFilter := cond.Filter != nil
 	hasDecay := cond.Decay != nil
+	hasPropertyValue := cond.PropertyValue != nil
 
-	if !hasFilter && !hasDecay {
-		return fmt.Errorf("rank condition[%d]: exactly one of 'filter' or 'decay' must be set", idx)
+	set := 0
+	if hasFilter {
+		set++
 	}
-	if hasFilter && hasDecay {
-		return fmt.Errorf("rank condition[%d]: exactly one of 'filter' or 'decay' must be set, both are set", idx)
+	if hasDecay {
+		set++
+	}
+	if hasPropertyValue {
+		set++
+	}
+	if set != 1 {
+		return fmt.Errorf("rank condition[%d]: exactly one of 'filter', 'decay', or 'property_value' must be set", idx)
 	}
 
 	if hasFilter {
-		if err := validateRankFilterOps(cond.Filter.Root, idx); err != nil {
-			return err
-		}
+		return validateRankFilterOps(cond.Filter.Root, idx)
 	}
 
 	if hasDecay {
 		return validateDecay(cond.Decay, idx)
+	}
+
+	if hasPropertyValue {
+		return validatePropertyValue(cond.PropertyValue, idx)
 	}
 
 	return nil
@@ -135,9 +154,8 @@ func validateDecay(d *Decay, condIdx int) error {
 	if d.Path == nil {
 		return fmt.Errorf("rank condition[%d] decay: path is required", condIdx)
 	}
-	if d.Origin == "" {
-		return fmt.Errorf("rank condition[%d] decay: origin is required", condIdx)
-	}
+	// Origin is optional — defaults to "now" for date properties at scoring time.
+	// For numeric properties, a missing origin will produce a parse error at scoring time.
 	if d.Scale == "" {
 		return fmt.Errorf("rank condition[%d] decay: scale is required", condIdx)
 	}
@@ -155,5 +173,18 @@ func validateDecay(d *Decay, condIdx int) error {
 		return fmt.Errorf("rank condition[%d] decay: decay_value must be between 0 and 1, got %f", condIdx, d.DecayValue)
 	}
 
+	return nil
+}
+
+func validatePropertyValue(fv *PropertyValue, condIdx int) error {
+	if fv.Path == nil {
+		return fmt.Errorf("rank condition[%d] property_value: path is required", condIdx)
+	}
+	switch fv.Modifier {
+	case "none", "log1p", "sqrt", "":
+		// valid
+	default:
+		return fmt.Errorf("rank condition[%d] property_value: modifier must be one of 'none', 'log1p', 'sqrt', got %q", condIdx, fv.Modifier)
+	}
 	return nil
 }

@@ -703,7 +703,36 @@ func (p *Parser) extractRankCondition(cond *pb.RankCondition, className, tenant 
 		pc.Decay = decay
 	}
 
+	if cond.PropertyValue != nil {
+		fv, err := extractPropertyValueFunction(cond.GetPropertyValue(), idx)
+		if err != nil {
+			return filters.RankCondition{}, err
+		}
+		pc.PropertyValue = fv
+	}
+
 	return pc, nil
+}
+
+func extractPropertyValueFunction(fv *pb.PropertyValueFunction, condIdx int) (*filters.PropertyValue, error) {
+	if fv == nil {
+		return nil, nil
+	}
+
+	path := fv.GetPath()
+	if len(path) == 0 {
+		return nil, fmt.Errorf("rank condition[%d] property_value: path is required", condIdx)
+	}
+
+	modifier := "none"
+	if fv.Modifier != nil {
+		modifier = fv.GetModifier()
+	}
+
+	return &filters.PropertyValue{
+		Path:     &filters.Path{Property: schema.PropertyName(path[0])},
+		Modifier: modifier,
+	}, nil
 }
 
 func extractDecayFunction(d *pb.DecayFunction, condIdx int) (*filters.Decay, error) {

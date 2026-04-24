@@ -198,7 +198,7 @@ func TestScoreResult_FilterMatch(t *testing.T) {
 	conds := []filters.RankCondition{
 		filterCondition("color", filters.OperatorEqual, "red", schema.DataTypeText),
 	}
-	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), time.Now(), nil)
+	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), nil, 0, time.Now(), nil)
 	assert.InDelta(t, 1.0, float64(score), 0.001)
 }
 
@@ -207,7 +207,7 @@ func TestScoreResult_FilterNoMatch(t *testing.T) {
 	conds := []filters.RankCondition{
 		filterCondition("color", filters.OperatorEqual, "red", schema.DataTypeText),
 	}
-	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), time.Now(), nil)
+	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), nil, 0, time.Now(), nil)
 	assert.InDelta(t, 0.0, float64(score), 0.001)
 }
 
@@ -216,7 +216,7 @@ func TestScoreResult_FilterMissingProperty(t *testing.T) {
 	conds := []filters.RankCondition{
 		filterCondition("color", filters.OperatorEqual, "red", schema.DataTypeText),
 	}
-	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), time.Now(), nil)
+	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), nil, 0, time.Now(), nil)
 	assert.InDelta(t, 0.0, float64(score), 0.001)
 }
 
@@ -225,7 +225,7 @@ func TestScoreResult_NilSchema(t *testing.T) {
 	conds := []filters.RankCondition{
 		filterCondition("color", filters.OperatorEqual, "red", schema.DataTypeText),
 	}
-	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), time.Now(), nil)
+	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), nil, 0, time.Now(), nil)
 	assert.InDelta(t, 0.0, float64(score), 0.001)
 }
 
@@ -252,7 +252,7 @@ func TestScoreResult_WeightedAverage(t *testing.T) {
 			Weight: 1.0, // doesn't match → score 0.0
 		},
 	}
-	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), time.Now(), nil)
+	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), nil, 0, time.Now(), nil)
 	// (2*1.0 + 1*0.0) / (2+1) = 0.6667
 	assert.InDelta(t, 0.6667, float64(score), 0.01)
 }
@@ -269,7 +269,7 @@ func TestScoreResult_ZeroWeight(t *testing.T) {
 			Weight: 0, // zero weight defaults to 1.0
 		},
 	}
-	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), time.Now(), nil)
+	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), nil, 0, time.Now(), nil)
 	assert.InDelta(t, 1.0, float64(score), 0.001)
 }
 
@@ -754,7 +754,7 @@ func TestScoreResult_NegativeWeightDemotes(t *testing.T) {
 			Weight: -1.0,
 		},
 	}
-	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), time.Now(), nil)
+	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), nil, 0, time.Now(), nil)
 	// weight=-1, condScore=1 → weightedSum = -1*1 = -1, weightSum = 1 → -1/1 = -1
 	assert.InDelta(t, -1.0, float64(score), 0.001)
 }
@@ -783,7 +783,7 @@ func TestScoreResult_MixedPositiveNegativeWeights(t *testing.T) {
 			Weight: -1.0,
 		},
 	}
-	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), time.Now(), nil)
+	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), nil, 0, time.Now(), nil)
 	// (2*1 + -1*1) / (2+1) = 1/3 ≈ 0.333
 	assert.InDelta(t, 0.333, float64(score), 0.01)
 }
@@ -903,4 +903,117 @@ func TestComputeDecayFunction_NoNaN(t *testing.T) {
 
 	score = computeDecayFunction("linear", 0, 0, 100, 0.5)
 	assert.False(t, math.IsNaN(float64(score)))
+}
+
+// --- PropertyValue tests ---
+
+func propertyValueCondition(path, modifier string) filters.RankCondition {
+	return filters.RankCondition{
+		PropertyValue: &filters.PropertyValue{
+			Path:     &filters.Path{Property: schema.PropertyName(path)},
+			Modifier: modifier,
+		},
+		Weight: 1.0,
+	}
+}
+
+func TestApplyRankScoring_PropertyValuePromotesHighValues(t *testing.T) {
+	results := []search.Result{
+		makeResult("low-likes", 1.0, map[string]interface{}{"likes": float64(10)}),
+		makeResult("high-likes", 0.5, map[string]interface{}{"likes": float64(1000)}),
+	}
+	rank := &filters.Rank{
+		Conditions: []filters.RankCondition{propertyValueCondition("likes", "none")},
+		Weight:     1.0,
+	}
+	got := applyRankScoring(results, rank, 10)
+	// With weight=1.0, only rank score matters. high-likes (normalized to 1.0) should be first.
+	assert.Equal(t, strfmt.UUID("high-likes"), got[0].ID)
+	assert.Equal(t, strfmt.UUID("low-likes"), got[1].ID)
+}
+
+func TestApplyRankScoring_PropertyValueLog1p(t *testing.T) {
+	results := []search.Result{
+		makeResult("a", 0.5, map[string]interface{}{"likes": float64(0)}),
+		makeResult("b", 0.5, map[string]interface{}{"likes": float64(100)}),
+		makeResult("c", 0.5, map[string]interface{}{"likes": float64(10000)}),
+	}
+	rank := &filters.Rank{
+		Conditions: []filters.RankCondition{propertyValueCondition("likes", "log1p")},
+		Weight:     1.0,
+	}
+	got := applyRankScoring(results, rank, 10)
+	// log1p compresses the range: log1p(10000) >> log1p(100) > log1p(0)
+	assert.Equal(t, strfmt.UUID("c"), got[0].ID)
+	assert.Equal(t, strfmt.UUID("b"), got[1].ID)
+	assert.Equal(t, strfmt.UUID("a"), got[2].ID)
+	// With log1p, middle value should be closer to top than with "none"
+	assert.True(t, got[1].Score > 0.4, "log1p should compress range, middle score should be > 0.4")
+}
+
+func TestApplyRankScoring_PropertyValueSqrt(t *testing.T) {
+	results := []search.Result{
+		makeResult("a", 0.5, map[string]interface{}{"likes": float64(0)}),
+		makeResult("b", 0.5, map[string]interface{}{"likes": float64(100)}),
+	}
+	rank := &filters.Rank{
+		Conditions: []filters.RankCondition{propertyValueCondition("likes", "sqrt")},
+		Weight:     1.0,
+	}
+	got := applyRankScoring(results, rank, 10)
+	assert.Equal(t, strfmt.UUID("b"), got[0].ID)
+	assert.Equal(t, strfmt.UUID("a"), got[1].ID)
+}
+
+func TestApplyRankScoring_PropertyValueAllSameValue(t *testing.T) {
+	results := []search.Result{
+		makeResult("a", 1.0, map[string]interface{}{"likes": float64(50)}),
+		makeResult("b", 0.5, map[string]interface{}{"likes": float64(50)}),
+	}
+	rank := &filters.Rank{
+		Conditions: []filters.RankCondition{propertyValueCondition("likes", "none")},
+		Weight:     0.5,
+	}
+	got := applyRankScoring(results, rank, 10)
+	// All same property value → all normalize to 1.0
+	// Primary score breaks the tie: a (1.0) > b (0.5)
+	assert.Equal(t, strfmt.UUID("a"), got[0].ID)
+}
+
+func TestApplyRankScoring_PropertyValueMissingProperty(t *testing.T) {
+	results := []search.Result{
+		makeResult("has-likes", 0.5, map[string]interface{}{"likes": float64(100)}),
+		makeResult("no-likes", 0.5, map[string]interface{}{"title": "hello"}),
+	}
+	rank := &filters.Rank{
+		Conditions: []filters.RankCondition{propertyValueCondition("likes", "none")},
+		Weight:     1.0,
+	}
+	got := applyRankScoring(results, rank, 10)
+	// Missing property → raw value 0. has-likes should rank first.
+	assert.Equal(t, strfmt.UUID("has-likes"), got[0].ID)
+}
+
+func TestApplyPropertyValueModifier(t *testing.T) {
+	tests := []struct {
+		name     string
+		val      float64
+		modifier string
+		expected float64
+	}{
+		{"none passes through", 100, "none", 100},
+		{"log1p of 0", 0, "log1p", 0},
+		{"log1p of 100", 100, "log1p", math.Log1p(100)},
+		{"log1p of negative clamps to 0", -5, "log1p", 0},
+		{"sqrt of 100", 100, "sqrt", 10},
+		{"sqrt of 0", 0, "sqrt", 0},
+		{"sqrt of negative clamps to 0", -5, "sqrt", 0},
+		{"empty modifier is none", 42, "", 42},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := applyPropertyValueModifier(tt.val, tt.modifier)
+			assert.InDelta(t, tt.expected, got, 0.001)
+		})
+	}
 }

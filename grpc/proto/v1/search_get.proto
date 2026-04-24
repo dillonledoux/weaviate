@@ -225,6 +225,13 @@ message RankCondition {
   optional Filters filter = 1;
   optional DecayFunction decay = 2;
   optional float weight = 3;
+  optional PropertyValueFunction property_value = 4;
+}
+
+message PropertyValueFunction {
+  // protolint:disable:next REPEATED_FIELD_NAMES_PLURALIZED
+  repeated string path = 1;
+  optional string modifier = 2;
 }
 
 message DecayFunction {

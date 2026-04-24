@@ -68,10 +68,14 @@ func applyRankScoring(results []search.Result, rank *filters.Rank, limit int) []
 		}
 	}
 
+	// Pre-compute normalized property value scores for each property_value condition.
+	// These need the full result set for min-max normalization.
+	propertyValueScores := precomputePropertyValueScores(results, rank.Conditions)
+
 	// Compute rank score for each result.
 	rankScores := make([]float32, len(results))
 	for i := range results {
-		rankScores[i] = scoreResult(&results[i], rank.Conditions, decayParams, nowTime, likeCache)
+		rankScores[i] = scoreResult(&results[i], rank.Conditions, decayParams, propertyValueScores, i, nowTime, likeCache)
 	}
 
 	// Normalize primary scores to [0,1] using min-max.
@@ -126,7 +130,8 @@ func applyRankScoring(results []search.Result, rank *filters.Rank, limit int) []
 // Negative per-condition weights demote matching documents. The denominator
 // uses abs(weight) so the score range is [-1, 1].
 func scoreResult(r *search.Result, conditions []filters.RankCondition,
-	decayParams []parsedDecay, nowTime time.Time, likeCache map[string]*regexp.Regexp,
+	decayParams []parsedDecay, propertyValueScores [][]float32, resultIdx int,
+	nowTime time.Time, likeCache map[string]*regexp.Regexp,
 ) float32 {
 	var weightedSum, weightSum float32
 
@@ -146,6 +151,8 @@ func scoreResult(r *search.Result, conditions []filters.RankCondition,
 			}
 		} else if cond.Decay != nil {
 			condScore = computeDecayForResult(cond.Decay, decayParams[i], props, nowTime)
+		} else if cond.PropertyValue != nil {
+			condScore = propertyValueScores[i][resultIdx]
 		}
 
 		weightedSum += weight * condScore
@@ -168,6 +175,71 @@ func scoreResult(r *search.Result, conditions []filters.RankCondition,
 func distToScore(results []search.Result) {
 	for i := range results {
 		results[i].Score = -results[i].Dist
+	}
+}
+
+// precomputePropertyValueScores computes normalized [0,1] scores for each
+// property_value condition across all results. Min-max normalization is applied
+// after the modifier so that the highest value in the result set scores 1.0.
+// Returns a slice indexed by [conditionIdx][resultIdx].
+func precomputePropertyValueScores(results []search.Result, conditions []filters.RankCondition) [][]float32 {
+	scores := make([][]float32, len(conditions))
+	for i, cond := range conditions {
+		if cond.PropertyValue == nil {
+			continue
+		}
+
+		fv := cond.PropertyValue
+		propName := string(fv.Path.Property)
+		raw := make([]float64, len(results))
+
+		for j := range results {
+			props := extractProps(&results[j])
+			if props == nil {
+				continue
+			}
+			val, err := toFloat64(props[propName])
+			if err != nil {
+				continue
+			}
+			raw[j] = applyPropertyValueModifier(val, fv.Modifier)
+		}
+
+		// Min-max normalize to [0,1].
+		minVal, maxVal := raw[0], raw[0]
+		for _, v := range raw[1:] {
+			if v < minVal {
+				minVal = v
+			}
+			if v > maxVal {
+				maxVal = v
+			}
+		}
+
+		scores[i] = make([]float32, len(results))
+		rangeVal := maxVal - minVal
+		if rangeVal > 0 {
+			for j := range raw {
+				scores[i][j] = float32((raw[j] - minVal) / rangeVal)
+			}
+		} else {
+			// All same value — normalize to 1.0
+			for j := range scores[i] {
+				scores[i][j] = 1.0
+			}
+		}
+	}
+	return scores
+}
+
+func applyPropertyValueModifier(val float64, modifier string) float64 {
+	switch modifier {
+	case "log1p":
+		return math.Log1p(math.Max(0, val))
+	case "sqrt":
+		return math.Sqrt(math.Max(0, val))
+	default:
+		return val
 	}
 }
 
@@ -418,7 +490,11 @@ func computeDecayForResult(decay *filters.Decay, parsed parsedDecay, props map[s
 
 func computeDistance(decay *filters.Decay, propValue interface{}, nowTime time.Time) (float64, error) {
 	if dateVal, ok := tryParseDate(propValue); ok {
-		originTime, err := parseOriginAsTime(decay.Origin, nowTime)
+		origin := decay.Origin
+		if origin == "" {
+			origin = "now"
+		}
+		originTime, err := parseOriginAsTime(origin, nowTime)
 		if err != nil {
 			return 0, err
 		}
