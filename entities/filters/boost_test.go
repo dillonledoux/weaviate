@@ -18,29 +18,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestValidateRank(t *testing.T) {
+func TestValidateBoost(t *testing.T) {
 	tests := []struct {
 		name    string
-		rank    *Rank
+		boost   *Boost
 		wantErr bool
 		errMsg  string
 	}{
 		{
-			name:    "nil rank returns no error",
-			rank:    nil,
+			name:    "nil boost returns no error",
+			boost:   nil,
 			wantErr: false,
 		},
 		{
 			name:    "empty conditions returns error",
-			rank:    &Rank{Conditions: []RankCondition{}},
+			boost:   &Boost{Conditions: []BoostCondition{}},
 			wantErr: true,
 			errMsg:  "at least one condition is required",
 		},
 		{
 			name: "negative weight returns error",
-			rank: &Rank{
+			boost: &Boost{
 				Weight: -1.0,
-				Conditions: []RankCondition{
+				Conditions: []BoostCondition{
 					{Filter: &LocalFilter{}},
 				},
 			},
@@ -49,8 +49,8 @@ func TestValidateRank(t *testing.T) {
 		},
 		{
 			name: "condition with none set returns error",
-			rank: &Rank{
-				Conditions: []RankCondition{
+			boost: &Boost{
+				Conditions: []BoostCondition{
 					{Weight: 1.0},
 				},
 			},
@@ -59,8 +59,8 @@ func TestValidateRank(t *testing.T) {
 		},
 		{
 			name: "condition with both filter and decay returns error",
-			rank: &Rank{
-				Conditions: []RankCondition{
+			boost: &Boost{
+				Conditions: []BoostCondition{
 					{
 						Filter: &LocalFilter{},
 						Decay:  &Decay{Path: &Path{Property: "age"}, Origin: "30", Scale: "10"},
@@ -72,8 +72,8 @@ func TestValidateRank(t *testing.T) {
 		},
 		{
 			name: "condition with negative weight is valid",
-			rank: &Rank{
-				Conditions: []RankCondition{
+			boost: &Boost{
+				Conditions: []BoostCondition{
 					{Filter: &LocalFilter{}, Weight: -0.5},
 				},
 			},
@@ -81,8 +81,8 @@ func TestValidateRank(t *testing.T) {
 		},
 		{
 			name: "decay with missing path returns error",
-			rank: &Rank{
-				Conditions: []RankCondition{
+			boost: &Boost{
+				Conditions: []BoostCondition{
 					{Decay: &Decay{Scale: "10"}},
 				},
 			},
@@ -91,8 +91,8 @@ func TestValidateRank(t *testing.T) {
 		},
 		{
 			name: "decay with missing origin is valid (defaults to now for dates)",
-			rank: &Rank{
-				Conditions: []RankCondition{
+			boost: &Boost{
+				Conditions: []BoostCondition{
 					{Decay: &Decay{Path: &Path{Property: "created_at"}, Scale: "7d"}},
 				},
 			},
@@ -100,8 +100,8 @@ func TestValidateRank(t *testing.T) {
 		},
 		{
 			name: "decay with missing scale returns error",
-			rank: &Rank{
-				Conditions: []RankCondition{
+			boost: &Boost{
+				Conditions: []BoostCondition{
 					{Decay: &Decay{Path: &Path{Property: "age"}, Origin: "30"}},
 				},
 			},
@@ -110,8 +110,8 @@ func TestValidateRank(t *testing.T) {
 		},
 		{
 			name: "decay with invalid curve returns error",
-			rank: &Rank{
-				Conditions: []RankCondition{
+			boost: &Boost{
+				Conditions: []BoostCondition{
 					{Decay: &Decay{
 						Path:   &Path{Property: "age"},
 						Origin: "30",
@@ -125,9 +125,9 @@ func TestValidateRank(t *testing.T) {
 		},
 		{
 			name: "negative depth returns error",
-			rank: &Rank{
+			boost: &Boost{
 				Depth: -1,
-				Conditions: []RankCondition{
+				Conditions: []BoostCondition{
 					{Filter: &LocalFilter{}, Weight: 1.0},
 				},
 			},
@@ -136,9 +136,9 @@ func TestValidateRank(t *testing.T) {
 		},
 		{
 			name: "positive depth is valid",
-			rank: &Rank{
+			boost: &Boost{
 				Depth: 500,
-				Conditions: []RankCondition{
+				Conditions: []BoostCondition{
 					{Filter: &LocalFilter{}, Weight: 1.0},
 				},
 			},
@@ -146,8 +146,8 @@ func TestValidateRank(t *testing.T) {
 		},
 		{
 			name: "property_value with missing path returns error",
-			rank: &Rank{
-				Conditions: []RankCondition{
+			boost: &Boost{
+				Conditions: []BoostCondition{
 					{PropertyValue: &PropertyValue{Modifier: "log1p"}},
 				},
 			},
@@ -156,8 +156,8 @@ func TestValidateRank(t *testing.T) {
 		},
 		{
 			name: "property_value with invalid modifier returns error",
-			rank: &Rank{
-				Conditions: []RankCondition{
+			boost: &Boost{
+				Conditions: []BoostCondition{
 					{PropertyValue: &PropertyValue{
 						Path:     &Path{Property: "likes"},
 						Modifier: "invalid",
@@ -169,8 +169,8 @@ func TestValidateRank(t *testing.T) {
 		},
 		{
 			name: "valid property_value condition",
-			rank: &Rank{
-				Conditions: []RankCondition{
+			boost: &Boost{
+				Conditions: []BoostCondition{
 					{PropertyValue: &PropertyValue{
 						Path:     &Path{Property: "likes"},
 						Modifier: "log1p",
@@ -181,8 +181,8 @@ func TestValidateRank(t *testing.T) {
 		},
 		{
 			name: "condition with filter and property_value returns error",
-			rank: &Rank{
-				Conditions: []RankCondition{
+			boost: &Boost{
+				Conditions: []BoostCondition{
 					{
 						Filter:        &LocalFilter{},
 						PropertyValue: &PropertyValue{Path: &Path{Property: "likes"}},
@@ -194,9 +194,9 @@ func TestValidateRank(t *testing.T) {
 		},
 		{
 			name: "valid filter condition returns no error",
-			rank: &Rank{
+			boost: &Boost{
 				Weight: 0.5,
-				Conditions: []RankCondition{
+				Conditions: []BoostCondition{
 					{Filter: &LocalFilter{}, Weight: 1.0},
 				},
 			},
@@ -204,9 +204,9 @@ func TestValidateRank(t *testing.T) {
 		},
 		{
 			name: "valid decay condition returns no error",
-			rank: &Rank{
+			boost: &Boost{
 				Weight: 0.5,
-				Conditions: []RankCondition{
+				Conditions: []BoostCondition{
 					{Decay: &Decay{
 						Path:   &Path{Property: "age"},
 						Origin: "30",
@@ -219,9 +219,9 @@ func TestValidateRank(t *testing.T) {
 		},
 		{
 			name: "multiple valid conditions returns no error",
-			rank: &Rank{
+			boost: &Boost{
 				Weight: 0.8,
-				Conditions: []RankCondition{
+				Conditions: []BoostCondition{
 					{Filter: &LocalFilter{}, Weight: 1.0},
 					{Decay: &Decay{
 						Path:   &Path{Property: "timestamp"},
@@ -237,7 +237,7 @@ func TestValidateRank(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateRank(tt.rank)
+			err := ValidateBoost(tt.boost)
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)

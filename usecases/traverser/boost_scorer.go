@@ -9,10 +9,10 @@
 //  CONTACT: hello@weaviate.io
 //
 
-// rank_scorer.go implements the rank post-scoring pipeline. It rescores
-// search results by evaluating each result against a set of ranking
+// boost_scorer.go implements the boost post-scoring pipeline. It rescores
+// search results by evaluating each result against a set of boost
 // conditions (filter-based binary scoring and/or decay-based continuous
-// scoring), then blending the rank score with the normalized primary
+// scoring), then blending the boost score with the normalized primary
 // search score using a configurable weight parameter.
 //
 // This file is intentionally self-contained: all scoring, filter matching,
@@ -34,19 +34,12 @@ import (
 	"github.com/weaviate/weaviate/entities/search"
 )
 
-// applyRankScoring rescores the given search results by combining the primary
-// search score with a rank score computed from the rank conditions.
-// The combination formula is:
-//
-//	final = (1 - weight) * normalizedPrimary + weight * rankScore
-//
-// Results are re-sorted by final score descending and truncated to limit.
-func applyRankScoring(results []search.Result, rank *filters.Rank, limit int) []search.Result {
-	if rank == nil || len(rank.Conditions) == 0 || len(results) == 0 {
+func applyBoostScoring(results []search.Result, boost *filters.Boost, limit int) []search.Result {
+	if boost == nil || len(boost.Conditions) == 0 || len(results) == 0 {
 		return results
 	}
 
-	weight := rank.Weight
+	weight := boost.Weight
 	if weight <= 0 {
 		return results
 	}
@@ -57,9 +50,9 @@ func applyRankScoring(results []search.Result, rank *filters.Rank, limit int) []
 	nowTime := time.Now()
 
 	// Pre-parse decay parameters and pre-compile Like patterns once.
-	decayParams := make([]parsedDecay, len(rank.Conditions))
+	decayParams := make([]parsedDecay, len(boost.Conditions))
 	likeCache := make(map[string]*regexp.Regexp)
-	for i, cond := range rank.Conditions {
+	for i, cond := range boost.Conditions {
 		if cond.Decay != nil {
 			decayParams[i] = parseDecayParams(cond.Decay)
 		}
@@ -70,12 +63,12 @@ func applyRankScoring(results []search.Result, rank *filters.Rank, limit int) []
 
 	// Pre-compute normalized property value scores for each property_value condition.
 	// These need the full result set for min-max normalization.
-	propertyValueScores := precomputePropertyValueScores(results, rank.Conditions)
+	propertyValueScores := precomputePropertyValueScores(results, boost.Conditions)
 
-	// Compute rank score for each result.
-	rankScores := make([]float32, len(results))
+	// Compute boost score for each result.
+	boostScores := make([]float32, len(results))
 	for i := range results {
-		rankScores[i] = scoreResult(&results[i], rank.Conditions, decayParams, propertyValueScores, i, nowTime, likeCache)
+		boostScores[i] = scoreResult(&results[i], boost.Conditions, decayParams, propertyValueScores, i, nowTime, likeCache)
 	}
 
 	// Normalize primary scores to [0,1] using min-max.
@@ -99,7 +92,7 @@ func applyRankScoring(results []search.Result, rank *filters.Rank, limit int) []
 			primaryScores[i] = (primaryScores[i] - minPrimary) / rangePrimary
 		}
 	} else {
-		// All same score — normalize to 1.0 so rank is the tiebreaker.
+		// All same score — normalize to 1.0 so boost is the tiebreaker.
 		for i := range primaryScores {
 			primaryScores[i] = 1.0
 		}
@@ -107,7 +100,7 @@ func applyRankScoring(results []search.Result, rank *filters.Rank, limit int) []
 
 	// Combine scores.
 	for i := range results {
-		results[i].Score = (1-weight)*primaryScores[i] + weight*rankScores[i]
+		results[i].Score = (1-weight)*primaryScores[i] + weight*boostScores[i]
 	}
 
 	// Re-sort by combined score descending.
@@ -126,10 +119,10 @@ func applyRankScoring(results []search.Result, rank *filters.Rank, limit int) []
 	return results
 }
 
-// scoreResult computes the weighted rank score for a single search result.
+// scoreResult computes the weighted boost score for a single search result.
 // Negative per-condition weights demote matching documents. The denominator
 // uses abs(weight) so the score range is [-1, 1].
-func scoreResult(r *search.Result, conditions []filters.RankCondition,
+func scoreResult(r *search.Result, conditions []filters.BoostCondition,
 	decayParams []parsedDecay, propertyValueScores [][]float32, resultIdx int,
 	nowTime time.Time, likeCache map[string]*regexp.Regexp,
 ) float32 {
@@ -182,7 +175,7 @@ func distToScore(results []search.Result) {
 // property_value condition across all results. Min-max normalization is applied
 // after the modifier so that the highest value in the result set scores 1.0.
 // Returns a slice indexed by [conditionIdx][resultIdx].
-func precomputePropertyValueScores(results []search.Result, conditions []filters.RankCondition) [][]float32 {
+func precomputePropertyValueScores(results []search.Result, conditions []filters.BoostCondition) [][]float32 {
 	scores := make([][]float32, len(conditions))
 	for i, cond := range conditions {
 		if cond.PropertyValue == nil {

@@ -59,7 +59,7 @@ type GetParams struct {
 	HybridSearch            *searchparams.HybridSearch
 	GroupBy                 *searchparams.GroupBy
 	Selection               *searchparams.Selection
-	Rank                    *filters.Rank
+	Boost                   *filters.Boost
 	TargetVectorCombination *TargetCombination
 	Group                   *GroupParams
 	ModuleParams            map[string]interface{}

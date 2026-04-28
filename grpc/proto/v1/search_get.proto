@@ -49,7 +49,7 @@ message SearchRequest {
   optional GenerativeSearch generative = 60;
   optional Rerank rerank = 61;
 
-  optional Rank rank = 62;
+  optional Boost boost = 62;
 
   bool uses_123_api = 100 [deprecated = true];
   bool uses_125_api = 101 [deprecated = true];
@@ -215,13 +215,13 @@ message RefPropertiesResult {
   string prop_name = 2;
 }
 
-message Rank {
-  repeated RankCondition conditions = 1;
+message Boost {
+  repeated BoostCondition conditions = 1;
   optional float weight = 2;
   optional uint32 depth = 3;
 }
 
-message RankCondition {
+message BoostCondition {
   optional Filters filter = 1;
   optional DecayFunction decay = 2;
   optional float weight = 3;

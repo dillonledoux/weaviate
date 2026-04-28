@@ -45,9 +45,7 @@ import (
 
 var _NUMCPU = runtime.GOMAXPROCS(0)
 
-// DefaultRankDepth is the default candidate pool size for rank reranking
-// when Rank.Depth is not explicitly set (0).
-const DefaultRankDepth = 100
+const DefaultBoostDepth = 100
 
 // Explorer is a helper construct to perform vector-based searches. It does not
 // contain monitoring or authorization checks. It should thus never be directly
@@ -152,14 +150,14 @@ func (e *Explorer) GetClass(ctx context.Context,
 		return nil, errors.Wrap(err, "cursor api: invalid 'after' parameter")
 	}
 
-	// When rank is set, overfetch to give rank room to reorder results.
-	// The candidate pool size is controlled by rank.Depth (per-query) with
-	// a default of DefaultRankDepth. Capped at QueryMaximumResults.
+	// When boost is set, overfetch to give boost room to reorder results.
+	// The candidate pool size is controlled by boost.Depth (per-query) with
+	// a default of DefaultBoostDepth. Capped at QueryMaximumResults.
 	originalLimit := params.Pagination.Limit
-	if params.Rank != nil && params.Rank.Weight > 0 {
-		overfetch := params.Rank.Depth
+	if params.Boost != nil && params.Boost.Weight > 0 {
+		overfetch := params.Boost.Depth
 		if overfetch == 0 {
-			overfetch = DefaultRankDepth
+			overfetch = DefaultBoostDepth
 		}
 		if overfetch > int(e.config.QueryMaximumResults) {
 			overfetch = int(e.config.QueryMaximumResults)
@@ -174,7 +172,7 @@ func (e *Explorer) GetClass(ctx context.Context,
 		if err != nil {
 			return nil, err
 		}
-		res = e.applyRankIfNeeded(res, params.Rank, originalLimit, false)
+		res = e.applyBoostIfNeeded(res, params.Boost, originalLimit, false)
 		return e.searchResultsToGetResponse(ctx, res, nil, params, searchStartTime)
 	}
 
@@ -183,7 +181,7 @@ func (e *Explorer) GetClass(ctx context.Context,
 		if err != nil {
 			return nil, err
 		}
-		res = e.applyRankIfNeeded(res, params.Rank, originalLimit, true)
+		res = e.applyBoostIfNeeded(res, params.Boost, originalLimit, true)
 		return e.searchResultsToGetResponse(ctx, res, searchVector, params, searchStartTime)
 	}
 
@@ -193,21 +191,21 @@ func (e *Explorer) GetClass(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	res = e.applyRankIfNeeded(res, params.Rank, originalLimit, false)
+	res = e.applyBoostIfNeeded(res, params.Boost, originalLimit, false)
 	return e.searchResultsToGetResponse(ctx, res, nil, params, searchStartTime)
 }
 
-// applyRankIfNeeded applies rank post-scoring when rank conditions are
+// applyBoostIfNeeded applies boost post-scoring when boost conditions are
 // present and weight > 0. For vector searches, distances are converted to
 // scores first since vector search populates Dist but not Score.
-func (e *Explorer) applyRankIfNeeded(res []search.Result, rank *filters.Rank, originalLimit int, isVectorSearch bool) []search.Result {
-	if rank == nil || rank.Weight <= 0 || len(res) == 0 {
+func (e *Explorer) applyBoostIfNeeded(res []search.Result, boost *filters.Boost, originalLimit int, isVectorSearch bool) []search.Result {
+	if boost == nil || boost.Weight <= 0 || len(res) == 0 {
 		return res
 	}
 	if isVectorSearch {
 		distToScore(res)
 	}
-	return applyRankScoring(res, rank, originalLimit)
+	return applyBoostScoring(res, boost, originalLimit)
 }
 
 func (e *Explorer) getClassKeywordBased(ctx context.Context, params dto.GetParams) ([]search.Result, error) {

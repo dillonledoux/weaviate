@@ -33,8 +33,8 @@ func makeResult(id string, score float32, props map[string]interface{}) search.R
 	}
 }
 
-func filterCondition(path string, op filters.Operator, val interface{}, dt schema.DataType) filters.RankCondition {
-	return filters.RankCondition{
+func filterCondition(path string, op filters.Operator, val interface{}, dt schema.DataType) filters.BoostCondition {
+	return filters.BoostCondition{
 		Filter: &filters.LocalFilter{
 			Root: &filters.Clause{
 				On: &filters.Path{Property: schema.PropertyName(path)},
@@ -49,8 +49,8 @@ func filterCondition(path string, op filters.Operator, val interface{}, dt schem
 	}
 }
 
-func decayCondition(path, origin, scale, curve string, decayValue float32) filters.RankCondition {
-	return filters.RankCondition{
+func decayCondition(path, origin, scale, curve string, decayValue float32) filters.BoostCondition {
+	return filters.BoostCondition{
 		Decay: &filters.Decay{
 			Path:       &filters.Path{Property: schema.PropertyName(path)},
 			Origin:     origin,
@@ -62,85 +62,85 @@ func decayCondition(path, origin, scale, curve string, decayValue float32) filte
 	}
 }
 
-// --- applyRankScoring tests ---
+// --- applyBoostScoring tests ---
 
-func TestApplyRankScoring_NilRank(t *testing.T) {
+func TestApplyBoostScoring_NilRank(t *testing.T) {
 	results := []search.Result{makeResult("a", 1.0, nil)}
-	got := applyRankScoring(results, nil, 10)
+	got := applyBoostScoring(results, nil, 10)
 	assert.Equal(t, results, got)
 }
 
-func TestApplyRankScoring_EmptyConditions(t *testing.T) {
+func TestApplyBoostScoring_EmptyConditions(t *testing.T) {
 	results := []search.Result{makeResult("a", 1.0, nil)}
-	got := applyRankScoring(results, &filters.Rank{Conditions: nil, Weight: 0.5}, 10)
+	got := applyBoostScoring(results, &filters.Boost{Conditions: nil, Weight: 0.5}, 10)
 	assert.Equal(t, results, got)
 }
 
-func TestApplyRankScoring_WeightZero(t *testing.T) {
+func TestApplyBoostScoring_WeightZero(t *testing.T) {
 	results := []search.Result{
 		makeResult("a", 1.0, map[string]interface{}{"inStock": true}),
 		makeResult("b", 0.5, map[string]interface{}{"inStock": false}),
 	}
-	rank := &filters.Rank{
-		Conditions: []filters.RankCondition{
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{
 			filterCondition("inStock", filters.OperatorEqual, true, schema.DataTypeBoolean),
 		},
 		Weight: 0,
 	}
-	got := applyRankScoring(results, rank, 10)
+	got := applyBoostScoring(results, boost, 10)
 	// weight=0 → no change, original order preserved
 	assert.Equal(t, strfmt.UUID("a"), got[0].ID)
 	assert.Equal(t, strfmt.UUID("b"), got[1].ID)
 }
 
-func TestApplyRankScoring_FilterPromotesMatchingResults(t *testing.T) {
+func TestApplyBoostScoring_FilterPromotesMatchingResults(t *testing.T) {
 	results := []search.Result{
 		makeResult("no-stock", 1.0, map[string]interface{}{"inStock": false}),
 		makeResult("in-stock", 0.5, map[string]interface{}{"inStock": true}),
 	}
-	rank := &filters.Rank{
-		Conditions: []filters.RankCondition{
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{
 			filterCondition("inStock", filters.OperatorEqual, true, schema.DataTypeBoolean),
 		},
 		Weight: 1.0,
 	}
-	got := applyRankScoring(results, rank, 10)
-	// With weight=1.0, only rank score matters. in-stock should be first.
+	got := applyBoostScoring(results, boost, 10)
+	// With weight=1.0, only boost score matters. in-stock should be first.
 	assert.Equal(t, strfmt.UUID("in-stock"), got[0].ID)
 	assert.Equal(t, strfmt.UUID("no-stock"), got[1].ID)
 }
 
-func TestApplyRankScoring_Truncation(t *testing.T) {
+func TestApplyBoostScoring_Truncation(t *testing.T) {
 	results := []search.Result{
 		makeResult("a", 1.0, map[string]interface{}{"x": true}),
 		makeResult("b", 0.9, map[string]interface{}{"x": true}),
 		makeResult("c", 0.8, map[string]interface{}{"x": true}),
 	}
-	rank := &filters.Rank{
-		Conditions: []filters.RankCondition{
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{
 			filterCondition("x", filters.OperatorEqual, true, schema.DataTypeBoolean),
 		},
 		Weight: 0.5,
 	}
-	got := applyRankScoring(results, rank, 2)
+	got := applyBoostScoring(results, boost, 2)
 	assert.Len(t, got, 2)
 }
 
-func TestApplyRankScoring_AllSamePrimaryScore(t *testing.T) {
+func TestApplyBoostScoring_AllSamePrimaryScore(t *testing.T) {
 	// When all primary scores are equal, they normalize to 1.0
-	// and rank becomes the tiebreaker.
+	// and boost becomes the tiebreaker.
 	results := []search.Result{
 		makeResult("no-match", 0.5, map[string]interface{}{"inStock": false}),
 		makeResult("match", 0.5, map[string]interface{}{"inStock": true}),
 	}
-	rank := &filters.Rank{
-		Conditions: []filters.RankCondition{
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{
 			filterCondition("inStock", filters.OperatorEqual, true, schema.DataTypeBoolean),
 		},
 		Weight: 0.5,
 	}
-	got := applyRankScoring(results, rank, 10)
-	// match has rank=1.0, no-match has rank=0.0
+	got := applyBoostScoring(results, boost, 10)
+	// match has boost=1.0, no-match has boost=0.0
 	// final(match) = 0.5*1.0 + 0.5*1.0 = 1.0
 	// final(no-match) = 0.5*1.0 + 0.5*0.0 = 0.5
 	assert.Equal(t, strfmt.UUID("match"), got[0].ID)
@@ -159,35 +159,35 @@ func TestDistToScore(t *testing.T) {
 	assert.InDelta(t, -0.90, float64(results[2].Score), 0.001)
 }
 
-func TestApplyRankScoring_WithDistConvertedScores(t *testing.T) {
-	// Simulates vector search: explorer calls distToScore before applyRankScoring.
+func TestApplyBoostScoring_WithDistConvertedScores(t *testing.T) {
+	// Simulates vector search: explorer calls distToScore before applyBoostScoring.
 	results := []search.Result{
 		{ID: strfmt.UUID("close"), Dist: 0.01, Schema: map[string]interface{}{"streaming": false}},
 		{ID: strfmt.UUID("medium"), Dist: 0.10, Schema: map[string]interface{}{"streaming": true}},
 		{ID: strfmt.UUID("far"), Dist: 0.90, Schema: map[string]interface{}{"streaming": true}},
 	}
 	distToScore(results)
-	rank := &filters.Rank{
-		Conditions: []filters.RankCondition{
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{
 			filterCondition("streaming", filters.OperatorEqual, true, schema.DataTypeBoolean),
 		},
 		Weight: 0.5,
 	}
-	got := applyRankScoring(results, rank, 10)
+	got := applyBoostScoring(results, boost, 10)
 	// "medium": decent distance (normalized ~0.9) + streaming (1.0) → best combined
 	// "close": best distance (normalized 1.0) but no streaming (0.0) → 0.5
 	// "far": worst distance (normalized 0.0) but streaming (1.0) → 0.5
 	assert.Equal(t, strfmt.UUID("medium"), got[0].ID)
 }
 
-func TestApplyRankScoring_EmptyResults(t *testing.T) {
-	rank := &filters.Rank{
-		Conditions: []filters.RankCondition{
+func TestApplyBoostScoring_EmptyResults(t *testing.T) {
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{
 			filterCondition("x", filters.OperatorEqual, true, schema.DataTypeBoolean),
 		},
 		Weight: 0.5,
 	}
-	got := applyRankScoring(nil, rank, 10)
+	got := applyBoostScoring(nil, boost, 10)
 	assert.Nil(t, got)
 }
 
@@ -195,7 +195,7 @@ func TestApplyRankScoring_EmptyResults(t *testing.T) {
 
 func TestScoreResult_FilterMatch(t *testing.T) {
 	r := makeResult("a", 1.0, map[string]interface{}{"color": "red"})
-	conds := []filters.RankCondition{
+	conds := []filters.BoostCondition{
 		filterCondition("color", filters.OperatorEqual, "red", schema.DataTypeText),
 	}
 	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), nil, 0, time.Now(), nil)
@@ -204,7 +204,7 @@ func TestScoreResult_FilterMatch(t *testing.T) {
 
 func TestScoreResult_FilterNoMatch(t *testing.T) {
 	r := makeResult("a", 1.0, map[string]interface{}{"color": "blue"})
-	conds := []filters.RankCondition{
+	conds := []filters.BoostCondition{
 		filterCondition("color", filters.OperatorEqual, "red", schema.DataTypeText),
 	}
 	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), nil, 0, time.Now(), nil)
@@ -213,7 +213,7 @@ func TestScoreResult_FilterNoMatch(t *testing.T) {
 
 func TestScoreResult_FilterMissingProperty(t *testing.T) {
 	r := makeResult("a", 1.0, map[string]interface{}{})
-	conds := []filters.RankCondition{
+	conds := []filters.BoostCondition{
 		filterCondition("color", filters.OperatorEqual, "red", schema.DataTypeText),
 	}
 	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), nil, 0, time.Now(), nil)
@@ -222,7 +222,7 @@ func TestScoreResult_FilterMissingProperty(t *testing.T) {
 
 func TestScoreResult_NilSchema(t *testing.T) {
 	r := makeResult("a", 1.0, nil)
-	conds := []filters.RankCondition{
+	conds := []filters.BoostCondition{
 		filterCondition("color", filters.OperatorEqual, "red", schema.DataTypeText),
 	}
 	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), nil, 0, time.Now(), nil)
@@ -234,7 +234,7 @@ func TestScoreResult_WeightedAverage(t *testing.T) {
 		"inStock":  true,
 		"category": "electronics",
 	})
-	conds := []filters.RankCondition{
+	conds := []filters.BoostCondition{
 		{
 			Filter: &filters.LocalFilter{Root: &filters.Clause{
 				On:       &filters.Path{Property: "inStock"},
@@ -259,7 +259,7 @@ func TestScoreResult_WeightedAverage(t *testing.T) {
 
 func TestScoreResult_ZeroWeight(t *testing.T) {
 	r := makeResult("a", 1.0, map[string]interface{}{"x": true})
-	conds := []filters.RankCondition{
+	conds := []filters.BoostCondition{
 		{
 			Filter: &filters.LocalFilter{Root: &filters.Clause{
 				On:       &filters.Path{Property: "x"},
@@ -693,33 +693,33 @@ func TestExtractProps(t *testing.T) {
 	assert.Nil(t, extractProps(&r3))
 }
 
-// --- Integration: applyRankScoring with decay ---
+// --- Integration: applyBoostScoring with decay ---
 
-func TestApplyRankScoring_DecayReorders(t *testing.T) {
+func TestApplyBoostScoring_DecayReorders(t *testing.T) {
 	results := []search.Result{
 		makeResult("far", 0.5, map[string]interface{}{"price": float64(1000)}),
 		makeResult("close", 0.5, map[string]interface{}{"price": float64(110)}),
 	}
-	rank := &filters.Rank{
-		Conditions: []filters.RankCondition{
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{
 			decayCondition("price", "100", "200", "exp", 0.5),
 		},
 		Weight: 1.0,
 	}
-	got := applyRankScoring(results, rank, 10)
+	got := applyBoostScoring(results, boost, 10)
 	// close (dist=10) should rank first, far (dist=900) last
 	assert.Equal(t, strfmt.UUID("close"), got[0].ID)
 	assert.Equal(t, strfmt.UUID("far"), got[1].ID)
 }
 
-func TestApplyRankScoring_MixedConditions(t *testing.T) {
+func TestApplyBoostScoring_MixedConditions(t *testing.T) {
 	results := []search.Result{
 		makeResult("a", 0.5, map[string]interface{}{"inStock": true, "price": float64(500)}),
 		makeResult("b", 0.5, map[string]interface{}{"inStock": false, "price": float64(100)}),
 		makeResult("c", 0.5, map[string]interface{}{"inStock": true, "price": float64(100)}),
 	}
-	rank := &filters.Rank{
-		Conditions: []filters.RankCondition{
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{
 			{
 				Filter: &filters.LocalFilter{Root: &filters.Clause{
 					On:       &filters.Path{Property: "inStock"},
@@ -732,7 +732,7 @@ func TestApplyRankScoring_MixedConditions(t *testing.T) {
 		},
 		Weight: 1.0,
 	}
-	got := applyRankScoring(results, rank, 10)
+	got := applyBoostScoring(results, boost, 10)
 	// c: inStock=true(w=2,s=1) + price=100(w=1,s=1.0) → (2*1+1*1)/3 = 1.0
 	// a: inStock=true(w=2,s=1) + price=500(w=1,s=0.5) → (2*1+1*0.5)/3 = 0.833
 	// b: inStock=false(w=2,s=0) + price=100(w=1,s=1.0) → (2*0+1*1.0)/3 = 0.333
@@ -744,7 +744,7 @@ func TestApplyRankScoring_MixedConditions(t *testing.T) {
 func TestScoreResult_NegativeWeightDemotes(t *testing.T) {
 	// A single negative weight: matching result gets demoted.
 	r := makeResult("a", 1.0, map[string]interface{}{"inStock": true})
-	conds := []filters.RankCondition{
+	conds := []filters.BoostCondition{
 		{
 			Filter: &filters.LocalFilter{Root: &filters.Clause{
 				On:       &filters.Path{Property: "inStock"},
@@ -765,7 +765,7 @@ func TestScoreResult_MixedPositiveNegativeWeights(t *testing.T) {
 		"inStock":  true,
 		"category": "electronics",
 	})
-	conds := []filters.RankCondition{
+	conds := []filters.BoostCondition{
 		{
 			Filter: &filters.LocalFilter{Root: &filters.Clause{
 				On:       &filters.Path{Property: "inStock"},
@@ -788,13 +788,13 @@ func TestScoreResult_MixedPositiveNegativeWeights(t *testing.T) {
 	assert.InDelta(t, 0.333, float64(score), 0.01)
 }
 
-func TestApplyRankScoring_NegativeWeightDemotesMatchingResult(t *testing.T) {
+func TestApplyBoostScoring_NegativeWeightDemotesMatchingResult(t *testing.T) {
 	results := []search.Result{
 		makeResult("match", 0.5, map[string]interface{}{"banned": true}),
 		makeResult("no-match", 0.5, map[string]interface{}{"banned": false}),
 	}
-	rank := &filters.Rank{
-		Conditions: []filters.RankCondition{
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{
 			{
 				Filter: &filters.LocalFilter{Root: &filters.Clause{
 					On:       &filters.Path{Property: "banned"},
@@ -806,9 +806,9 @@ func TestApplyRankScoring_NegativeWeightDemotesMatchingResult(t *testing.T) {
 		},
 		Weight: 0.5,
 	}
-	got := applyRankScoring(results, rank, 10)
-	// no-match has rank=0 (doesn't match, so condScore=0, score=0)
-	// match has rank=-1 (matches negative weight)
+	got := applyBoostScoring(results, boost, 10)
+	// no-match has boost=0 (doesn't match, so condScore=0, score=0)
+	// match has boost=-1 (matches negative weight)
 	// After blending with weight=0.5: no-match ranks higher
 	assert.Equal(t, strfmt.UUID("no-match"), got[0].ID)
 	assert.Equal(t, strfmt.UUID("match"), got[1].ID)
@@ -907,8 +907,8 @@ func TestComputeDecayFunction_NoNaN(t *testing.T) {
 
 // --- PropertyValue tests ---
 
-func propertyValueCondition(path, modifier string) filters.RankCondition {
-	return filters.RankCondition{
+func propertyValueCondition(path, modifier string) filters.BoostCondition {
+	return filters.BoostCondition{
 		PropertyValue: &filters.PropertyValue{
 			Path:     &filters.Path{Property: schema.PropertyName(path)},
 			Modifier: modifier,
@@ -917,32 +917,32 @@ func propertyValueCondition(path, modifier string) filters.RankCondition {
 	}
 }
 
-func TestApplyRankScoring_PropertyValuePromotesHighValues(t *testing.T) {
+func TestApplyBoostScoring_PropertyValuePromotesHighValues(t *testing.T) {
 	results := []search.Result{
 		makeResult("low-likes", 1.0, map[string]interface{}{"likes": float64(10)}),
 		makeResult("high-likes", 0.5, map[string]interface{}{"likes": float64(1000)}),
 	}
-	rank := &filters.Rank{
-		Conditions: []filters.RankCondition{propertyValueCondition("likes", "none")},
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{propertyValueCondition("likes", "none")},
 		Weight:     1.0,
 	}
-	got := applyRankScoring(results, rank, 10)
-	// With weight=1.0, only rank score matters. high-likes (normalized to 1.0) should be first.
+	got := applyBoostScoring(results, boost, 10)
+	// With weight=1.0, only boost score matters. high-likes (normalized to 1.0) should be first.
 	assert.Equal(t, strfmt.UUID("high-likes"), got[0].ID)
 	assert.Equal(t, strfmt.UUID("low-likes"), got[1].ID)
 }
 
-func TestApplyRankScoring_PropertyValueLog1p(t *testing.T) {
+func TestApplyBoostScoring_PropertyValueLog1p(t *testing.T) {
 	results := []search.Result{
 		makeResult("a", 0.5, map[string]interface{}{"likes": float64(0)}),
 		makeResult("b", 0.5, map[string]interface{}{"likes": float64(100)}),
 		makeResult("c", 0.5, map[string]interface{}{"likes": float64(10000)}),
 	}
-	rank := &filters.Rank{
-		Conditions: []filters.RankCondition{propertyValueCondition("likes", "log1p")},
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{propertyValueCondition("likes", "log1p")},
 		Weight:     1.0,
 	}
-	got := applyRankScoring(results, rank, 10)
+	got := applyBoostScoring(results, boost, 10)
 	// log1p compresses the range: log1p(10000) >> log1p(100) > log1p(0)
 	assert.Equal(t, strfmt.UUID("c"), got[0].ID)
 	assert.Equal(t, strfmt.UUID("b"), got[1].ID)
@@ -951,45 +951,45 @@ func TestApplyRankScoring_PropertyValueLog1p(t *testing.T) {
 	assert.True(t, got[1].Score > 0.4, "log1p should compress range, middle score should be > 0.4")
 }
 
-func TestApplyRankScoring_PropertyValueSqrt(t *testing.T) {
+func TestApplyBoostScoring_PropertyValueSqrt(t *testing.T) {
 	results := []search.Result{
 		makeResult("a", 0.5, map[string]interface{}{"likes": float64(0)}),
 		makeResult("b", 0.5, map[string]interface{}{"likes": float64(100)}),
 	}
-	rank := &filters.Rank{
-		Conditions: []filters.RankCondition{propertyValueCondition("likes", "sqrt")},
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{propertyValueCondition("likes", "sqrt")},
 		Weight:     1.0,
 	}
-	got := applyRankScoring(results, rank, 10)
+	got := applyBoostScoring(results, boost, 10)
 	assert.Equal(t, strfmt.UUID("b"), got[0].ID)
 	assert.Equal(t, strfmt.UUID("a"), got[1].ID)
 }
 
-func TestApplyRankScoring_PropertyValueAllSameValue(t *testing.T) {
+func TestApplyBoostScoring_PropertyValueAllSameValue(t *testing.T) {
 	results := []search.Result{
 		makeResult("a", 1.0, map[string]interface{}{"likes": float64(50)}),
 		makeResult("b", 0.5, map[string]interface{}{"likes": float64(50)}),
 	}
-	rank := &filters.Rank{
-		Conditions: []filters.RankCondition{propertyValueCondition("likes", "none")},
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{propertyValueCondition("likes", "none")},
 		Weight:     0.5,
 	}
-	got := applyRankScoring(results, rank, 10)
+	got := applyBoostScoring(results, boost, 10)
 	// All same property value → all normalize to 1.0
 	// Primary score breaks the tie: a (1.0) > b (0.5)
 	assert.Equal(t, strfmt.UUID("a"), got[0].ID)
 }
 
-func TestApplyRankScoring_PropertyValueMissingProperty(t *testing.T) {
+func TestApplyBoostScoring_PropertyValueMissingProperty(t *testing.T) {
 	results := []search.Result{
 		makeResult("has-likes", 0.5, map[string]interface{}{"likes": float64(100)}),
 		makeResult("no-likes", 0.5, map[string]interface{}{"title": "hello"}),
 	}
-	rank := &filters.Rank{
-		Conditions: []filters.RankCondition{propertyValueCondition("likes", "none")},
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{propertyValueCondition("likes", "none")},
 		Weight:     1.0,
 	}
-	got := applyRankScoring(results, rank, 10)
+	got := applyBoostScoring(results, boost, 10)
 	// Missing property → raw value 0. has-likes should rank first.
 	assert.Equal(t, strfmt.UUID("has-likes"), got[0].ID)
 }

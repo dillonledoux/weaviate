@@ -15,18 +15,18 @@ import (
 	"fmt"
 )
 
-// Rank represents a set of soft ranking conditions that promote or demote
-// matching documents without excluding non-matching ones. Rank rescores the
-// primary search results using a weighted combination of primary and rank scores.
-type Rank struct {
-	Conditions []RankCondition
-	Weight     float32 // blending weight [0,1]: final = (1-w)*primary + w*rank, default 0.5
+// Boost represents a set of soft ranking conditions that promote or demote
+// matching documents without excluding non-matching ones. Boost rescores the
+// primary search results using a weighted combination of primary and boost scores.
+type Boost struct {
+	Conditions []BoostCondition
+	Weight     float32 // blending weight [0,1]: final = (1-w)*primary + w*boost, default 0.5
 	Depth      int     // candidate pool size for reranking; 0 means use default (100)
 }
 
-// RankCondition represents a single ranking condition. Exactly one of
+// BoostCondition represents a single boost condition. Exactly one of
 // Filter, Decay, or PropertyValue must be set.
-type RankCondition struct {
+type BoostCondition struct {
 	Filter        *LocalFilter   // binary: 1 if match, 0 if not
 	Decay         *Decay         // continuous: distance-based [0,1]
 	PropertyValue *PropertyValue // continuous: score proportional to property value
@@ -52,37 +52,37 @@ type Decay struct {
 	DecayValue float32 // score at scale distance, default 0.5
 }
 
-// MaxRankConditions is the maximum number of conditions allowed in a single
-// rank clause. Each condition triggers index queries or per-document scoring,
+// MaxBoostConditions is the maximum number of conditions allowed in a single
+// boost clause. Each condition triggers index queries or per-document scoring,
 // so an unbounded count could cause resource exhaustion.
-const MaxRankConditions = 20
+const MaxBoostConditions = 20
 
-// ValidateRank validates a Rank struct for correctness. Returns nil for
+// ValidateBoost validates a Boost struct for correctness. Returns nil for
 // nil input.
-func ValidateRank(rank *Rank) error {
-	if rank == nil {
+func ValidateBoost(boost *Boost) error {
+	if boost == nil {
 		return nil
 	}
 
-	if len(rank.Conditions) == 0 {
-		return fmt.Errorf("rank: at least one condition is required")
+	if len(boost.Conditions) == 0 {
+		return fmt.Errorf("boost: at least one condition is required")
 	}
 
-	if len(rank.Conditions) > MaxRankConditions {
-		return fmt.Errorf("rank: too many conditions (%d), maximum is %d",
-			len(rank.Conditions), MaxRankConditions)
+	if len(boost.Conditions) > MaxBoostConditions {
+		return fmt.Errorf("boost: too many conditions (%d), maximum is %d",
+			len(boost.Conditions), MaxBoostConditions)
 	}
 
-	if rank.Weight < 0 || rank.Weight > 1 {
-		return fmt.Errorf("rank: weight must be between 0 and 1, got %f", rank.Weight)
+	if boost.Weight < 0 || boost.Weight > 1 {
+		return fmt.Errorf("boost: weight must be between 0 and 1, got %f", boost.Weight)
 	}
 
-	if rank.Depth < 0 {
-		return fmt.Errorf("rank: depth must be >= 0, got %d", rank.Depth)
+	if boost.Depth < 0 {
+		return fmt.Errorf("boost: depth must be >= 0, got %d", boost.Depth)
 	}
 
-	for i, cond := range rank.Conditions {
-		if err := validateRankCondition(cond, i); err != nil {
+	for i, cond := range boost.Conditions {
+		if err := validateBoostCondition(cond, i); err != nil {
 			return err
 		}
 	}
@@ -90,7 +90,7 @@ func ValidateRank(rank *Rank) error {
 	return nil
 }
 
-func validateRankCondition(cond RankCondition, idx int) error {
+func validateBoostCondition(cond BoostCondition, idx int) error {
 	hasFilter := cond.Filter != nil
 	hasDecay := cond.Decay != nil
 	hasPropertyValue := cond.PropertyValue != nil
@@ -106,11 +106,11 @@ func validateRankCondition(cond RankCondition, idx int) error {
 		set++
 	}
 	if set != 1 {
-		return fmt.Errorf("rank condition[%d]: exactly one of 'filter', 'decay', or 'property_value' must be set", idx)
+		return fmt.Errorf("boost condition[%d]: exactly one of 'filter', 'decay', or 'property_value' must be set", idx)
 	}
 
 	if hasFilter {
-		return validateRankFilterOps(cond.Filter.Root, idx)
+		return validateBoostFilterOps(cond.Filter.Root, idx)
 	}
 
 	if hasDecay {
@@ -124,9 +124,9 @@ func validateRankCondition(cond RankCondition, idx int) error {
 	return nil
 }
 
-// validateRankFilterOps checks that the filter only uses operators supported
+// validateBoostFilterOps checks that the filter only uses operators supported
 // by in-memory evaluation. Unsupported operators would silently score 0.
-func validateRankFilterOps(clause *Clause, condIdx int) error {
+func validateBoostFilterOps(clause *Clause, condIdx int) error {
 	if clause == nil {
 		return nil
 	}
@@ -138,12 +138,12 @@ func validateRankFilterOps(clause *Clause, condIdx int) error {
 		OperatorLike, OperatorIsNull:
 		// supported
 	case OperatorWithinGeoRange:
-		return fmt.Errorf("rank condition[%d] filter: operator WithinGeoRange is not supported in rank conditions", condIdx)
+		return fmt.Errorf("boost condition[%d] filter: operator WithinGeoRange is not supported in boost conditions", condIdx)
 	case ContainsAny, ContainsAll, ContainsNone:
-		return fmt.Errorf("rank condition[%d] filter: operator %s is not supported in rank conditions", condIdx, clause.Operator.Name())
+		return fmt.Errorf("boost condition[%d] filter: operator %s is not supported in boost conditions", condIdx, clause.Operator.Name())
 	}
 	for i := range clause.Operands {
-		if err := validateRankFilterOps(&clause.Operands[i], condIdx); err != nil {
+		if err := validateBoostFilterOps(&clause.Operands[i], condIdx); err != nil {
 			return err
 		}
 	}
@@ -152,25 +152,25 @@ func validateRankFilterOps(clause *Clause, condIdx int) error {
 
 func validateDecay(d *Decay, condIdx int) error {
 	if d.Path == nil {
-		return fmt.Errorf("rank condition[%d] decay: path is required", condIdx)
+		return fmt.Errorf("boost condition[%d] decay: path is required", condIdx)
 	}
 	// Origin is optional — defaults to "now" for date properties at scoring time.
 	// For numeric properties, a missing origin will produce a parse error at scoring time.
 	if d.Scale == "" {
-		return fmt.Errorf("rank condition[%d] decay: scale is required", condIdx)
+		return fmt.Errorf("boost condition[%d] decay: scale is required", condIdx)
 	}
 
 	switch d.Curve {
 	case "exp", "gauss", "linear", "":
 		// valid
 	default:
-		return fmt.Errorf("rank condition[%d] decay: curve must be one of 'exp', 'gauss', 'linear', got %q", condIdx, d.Curve)
+		return fmt.Errorf("boost condition[%d] decay: curve must be one of 'exp', 'gauss', 'linear', got %q", condIdx, d.Curve)
 	}
 
 	// DecayValue == 0 is treated as unset (defaults to 0.5 at scoring time).
 	// Explicit values must be in (0, 1].
 	if d.DecayValue != 0 && (d.DecayValue < 0 || d.DecayValue > 1) {
-		return fmt.Errorf("rank condition[%d] decay: decay_value must be between 0 and 1, got %f", condIdx, d.DecayValue)
+		return fmt.Errorf("boost condition[%d] decay: decay_value must be between 0 and 1, got %f", condIdx, d.DecayValue)
 	}
 
 	return nil
@@ -178,13 +178,13 @@ func validateDecay(d *Decay, condIdx int) error {
 
 func validatePropertyValue(fv *PropertyValue, condIdx int) error {
 	if fv.Path == nil {
-		return fmt.Errorf("rank condition[%d] property_value: path is required", condIdx)
+		return fmt.Errorf("boost condition[%d] property_value: path is required", condIdx)
 	}
 	switch fv.Modifier {
 	case "none", "log1p", "sqrt", "":
 		// valid
 	default:
-		return fmt.Errorf("rank condition[%d] property_value: modifier must be one of 'none', 'log1p', 'sqrt', got %q", condIdx, fv.Modifier)
+		return fmt.Errorf("boost condition[%d] property_value: modifier must be one of 'none', 'log1p', 'sqrt', got %q", condIdx, fv.Modifier)
 	}
 	return nil
 }

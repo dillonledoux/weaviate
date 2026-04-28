@@ -376,12 +376,12 @@ func (p *Parser) Search(req *pb.SearchRequest, config *config.Config) (dto.GetPa
 		out.AdditionalProperties.ModuleParams["rerank"] = extractRerank(req)
 	}
 
-	if req.Rank != nil {
-		rank, err := p.extractRank(req.Rank, req.Collection, req.Tenant)
+	if req.Boost != nil {
+		boost, err := p.extractBoost(req.Boost, req.Collection, req.Tenant)
 		if err != nil {
 			return dto.GetParams{}, err
 		}
-		out.Rank = rank
+		out.Boost = boost
 	}
 
 	if len(req.After) > 0 {
@@ -640,19 +640,19 @@ func extractRerank(req *pb.SearchRequest) *rank.Params {
 	return &rerank
 }
 
-func (p *Parser) extractRank(rank *pb.Rank, className, tenant string) (*filters.Rank, error) {
-	if rank == nil {
+func (p *Parser) extractBoost(boost *pb.Boost, className, tenant string) (*filters.Boost, error) {
+	if boost == nil {
 		return nil, nil
 	}
 
 	weight := float32(0.5)
-	if rank.Weight != nil {
-		weight = rank.GetWeight()
+	if boost.Weight != nil {
+		weight = boost.GetWeight()
 	}
 
-	conditions := make([]filters.RankCondition, 0, len(rank.GetConditions()))
-	for i, cond := range rank.GetConditions() {
-		pc, err := p.extractRankCondition(cond, className, tenant, i)
+	conditions := make([]filters.BoostCondition, 0, len(boost.GetConditions()))
+	for i, cond := range boost.GetConditions() {
+		pc, err := p.extractBoostCondition(cond, className, tenant, i)
 		if err != nil {
 			return nil, err
 		}
@@ -660,37 +660,37 @@ func (p *Parser) extractRank(rank *pb.Rank, className, tenant string) (*filters.
 	}
 
 	var depth int
-	if rank.Depth != nil {
-		depth = int(rank.GetDepth())
+	if boost.Depth != nil {
+		depth = int(boost.GetDepth())
 	}
 
-	result := &filters.Rank{
+	result := &filters.Boost{
 		Conditions: conditions,
 		Weight:     weight,
 		Depth:      depth,
 	}
 
-	if err := filters.ValidateRank(result); err != nil {
+	if err := filters.ValidateBoost(result); err != nil {
 		return nil, err
 	}
 
 	return result, nil
 }
 
-func (p *Parser) extractRankCondition(cond *pb.RankCondition, className, tenant string, idx int) (filters.RankCondition, error) {
+func (p *Parser) extractBoostCondition(cond *pb.BoostCondition, className, tenant string, idx int) (filters.BoostCondition, error) {
 	weight := float32(1.0)
 	if cond.Weight != nil {
 		weight = cond.GetWeight()
 	}
 
-	pc := filters.RankCondition{
+	pc := filters.BoostCondition{
 		Weight: weight,
 	}
 
 	if cond.Filter != nil {
 		clause, err := ExtractFilters(cond.GetFilter(), p.authorizedGetClass, className, tenant)
 		if err != nil {
-			return filters.RankCondition{}, fmt.Errorf("rank condition[%d] filter: %w", idx, err)
+			return filters.BoostCondition{}, fmt.Errorf("boost condition[%d] filter: %w", idx, err)
 		}
 		pc.Filter = &filters.LocalFilter{Root: &clause}
 	}
@@ -698,7 +698,7 @@ func (p *Parser) extractRankCondition(cond *pb.RankCondition, className, tenant 
 	if cond.Decay != nil {
 		decay, err := extractDecayFunction(cond.GetDecay(), idx)
 		if err != nil {
-			return filters.RankCondition{}, err
+			return filters.BoostCondition{}, err
 		}
 		pc.Decay = decay
 	}
@@ -706,7 +706,7 @@ func (p *Parser) extractRankCondition(cond *pb.RankCondition, className, tenant 
 	if cond.PropertyValue != nil {
 		fv, err := extractPropertyValueFunction(cond.GetPropertyValue(), idx)
 		if err != nil {
-			return filters.RankCondition{}, err
+			return filters.BoostCondition{}, err
 		}
 		pc.PropertyValue = fv
 	}
@@ -721,7 +721,7 @@ func extractPropertyValueFunction(fv *pb.PropertyValueFunction, condIdx int) (*f
 
 	path := fv.GetPath()
 	if len(path) == 0 {
-		return nil, fmt.Errorf("rank condition[%d] property_value: path is required", condIdx)
+		return nil, fmt.Errorf("boost condition[%d] property_value: path is required", condIdx)
 	}
 
 	modifier := "none"
@@ -742,7 +742,7 @@ func extractDecayFunction(d *pb.DecayFunction, condIdx int) (*filters.Decay, err
 
 	path := d.GetPath()
 	if len(path) == 0 {
-		return nil, fmt.Errorf("rank condition[%d] decay: path is required", condIdx)
+		return nil, fmt.Errorf("boost condition[%d] decay: path is required", condIdx)
 	}
 
 	curve := "exp"
