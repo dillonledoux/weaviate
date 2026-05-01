@@ -218,6 +218,36 @@ func TestValidateBoost(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "negative decay_value returns error",
+			boost: &Boost{
+				Conditions: []BoostCondition{
+					{Decay: &Decay{
+						Path:       &Path{Property: "age"},
+						Origin:     "30",
+						Scale:      "10",
+						DecayValue: -0.5,
+					}},
+				},
+			},
+			wantErr: true,
+			errMsg:  "decay_value must be between 0 and 1",
+		},
+		{
+			name: "decay_value greater than 1 returns error",
+			boost: &Boost{
+				Conditions: []BoostCondition{
+					{Decay: &Decay{
+						Path:       &Path{Property: "age"},
+						Origin:     "30",
+						Scale:      "10",
+						DecayValue: 1.5,
+					}},
+				},
+			},
+			wantErr: true,
+			errMsg:  "decay_value must be between 0 and 1",
+		},
+		{
 			name: "multiple valid conditions returns no error",
 			boost: &Boost{
 				Weight: 0.8,

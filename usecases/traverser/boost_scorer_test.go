@@ -12,6 +12,7 @@
 package traverser
 
 import (
+	"fmt"
 	"math"
 	"regexp"
 	"testing"
@@ -124,6 +125,83 @@ func TestApplyBoostScoring_Truncation(t *testing.T) {
 	}
 	got := applyBoostScoring(results, boost, 2)
 	assert.Len(t, got, 2)
+}
+
+func TestApplyBoostScoring_DepthPromotesDeepResult(t *testing.T) {
+	// Simulates depth overfetch: 10 results fetched (depth=10), original limit=3.
+	// The best boost match is at position 9 (last). With boost weight=1.0,
+	// it should be promoted to the top and the output truncated to 3.
+	results := make([]search.Result, 10)
+	for i := range results {
+		results[i] = makeResult(
+			fmt.Sprintf("item-%d", i),
+			float32(10-i)*0.1, // decreasing primary scores: 1.0, 0.9, ..., 0.1
+			map[string]interface{}{"promoted": i == 9},
+		)
+	}
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{
+			filterCondition("promoted", filters.OperatorEqual, true, schema.DataTypeBoolean),
+		},
+		Weight: 1.0,
+	}
+	got := applyBoostScoring(results, boost, 3)
+	require.Len(t, got, 3)
+	// item-9 (promoted=true, boost=1.0) should be first despite worst primary score.
+	assert.Equal(t, strfmt.UUID("item-9"), got[0].ID)
+}
+
+func TestApplyBoostScoring_SmallDepthMissesDeepResult(t *testing.T) {
+	// When depth is small (limit=3, only 3 results fetched), the promoted item
+	// at position 9 is never seen. Only the top-3 primary results are rescored.
+	results := make([]search.Result, 3)
+	for i := range results {
+		results[i] = makeResult(
+			fmt.Sprintf("item-%d", i),
+			float32(10-i)*0.1,
+			map[string]interface{}{"promoted": false},
+		)
+	}
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{
+			filterCondition("promoted", filters.OperatorEqual, true, schema.DataTypeBoolean),
+		},
+		Weight: 1.0,
+	}
+	got := applyBoostScoring(results, boost, 3)
+	require.Len(t, got, 3)
+	// No promoted items in the candidate pool, so order is unchanged.
+	assert.Equal(t, strfmt.UUID("item-0"), got[0].ID)
+}
+
+func TestApplyBoostScoring_DepthTruncatesToOriginalLimit(t *testing.T) {
+	// 20 results fetched (depth=20), original limit=5.
+	// Verify output is exactly 5 results.
+	results := make([]search.Result, 20)
+	for i := range results {
+		results[i] = makeResult(
+			fmt.Sprintf("item-%02d", i),
+			float32(20-i)*0.05,
+			map[string]interface{}{"inStock": i%3 == 0},
+		)
+	}
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{
+			filterCondition("inStock", filters.OperatorEqual, true, schema.DataTypeBoolean),
+		},
+		Weight: 0.8,
+	}
+	got := applyBoostScoring(results, boost, 5)
+	require.Len(t, got, 5)
+	// With weight=0.8, inStock items should dominate the top-5.
+	inStockCount := 0
+	for _, r := range got {
+		props := r.Schema.(map[string]interface{})
+		if props["inStock"] == true {
+			inStockCount++
+		}
+	}
+	assert.GreaterOrEqual(t, inStockCount, 3, "most top-5 results should be in-stock after boost")
 }
 
 func TestApplyBoostScoring_AllSamePrimaryScore(t *testing.T) {
@@ -574,6 +652,10 @@ func TestParseDecayParams_InvalidScale(t *testing.T) {
 	d = &filters.Decay{Scale: "0"}
 	p = parseDecayParams(d)
 	assert.False(t, p.valid)
+
+	d = &filters.Decay{Scale: "-10"}
+	p = parseDecayParams(d)
+	assert.False(t, p.valid, "negative scale should produce invalid params")
 }
 
 // --- toFloat64 ---
@@ -1016,4 +1098,89 @@ func TestApplyPropertyValueModifier(t *testing.T) {
 			assert.InDelta(t, tt.expected, got, 0.001)
 		})
 	}
+}
+
+func TestScoreResult_NegativeWeightNonMatch(t *testing.T) {
+	// Negative weight on a non-matching result should score 0 (not negative).
+	r := makeResult("a", 1.0, map[string]interface{}{"inStock": false})
+	conds := []filters.BoostCondition{
+		{
+			Filter: &filters.LocalFilter{Root: &filters.Clause{
+				On:       &filters.Path{Property: "inStock"},
+				Value:    &filters.Value{Value: true, Type: schema.DataTypeBoolean},
+				Operator: filters.OperatorEqual,
+			}},
+			Weight: -1.0,
+		},
+	}
+	score := scoreResult(&r, conds, make([]parsedDecay, len(conds)), nil, 0, time.Now(), nil)
+	// condScore=0 (no match), weight=-1 → weightedSum=-1*0=0, weightSum=1 → 0/1=0
+	assert.InDelta(t, 0.0, float64(score), 0.001)
+}
+
+func TestComputeDecayForResult_NonExistingField(t *testing.T) {
+	decay := &filters.Decay{
+		Path:   &filters.Path{Property: "nonExistent"},
+		Origin: "100",
+		Scale:  "200",
+	}
+	parsed := parseDecayParams(decay)
+	props := map[string]interface{}{"price": float64(50)}
+	score := computeDecayForResult(decay, parsed, props, time.Now())
+	assert.InDelta(t, 0.0, float64(score), 0.001, "decay on non-existing field should score 0")
+}
+
+func TestComputeDecayForResult_NilProps(t *testing.T) {
+	decay := &filters.Decay{
+		Path:   &filters.Path{Property: "price"},
+		Origin: "100",
+		Scale:  "200",
+	}
+	parsed := parseDecayParams(decay)
+	score := computeDecayForResult(decay, parsed, nil, time.Now())
+	assert.InDelta(t, 0.0, float64(score), 0.001, "decay on nil props should score 0")
+}
+
+func TestApplyBoostScoring_PropertyValueNonExistingField(t *testing.T) {
+	results := []search.Result{
+		makeResult("a", 1.0, map[string]interface{}{"title": "hello"}),
+		makeResult("b", 0.5, map[string]interface{}{"title": "world"}),
+	}
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{{
+			PropertyValue: &filters.PropertyValue{
+				Path:     &filters.Path{Property: "nonExistent"},
+				Modifier: "none",
+			},
+			Weight: 1.0,
+		}},
+		Weight: 1.0,
+	}
+	got := applyBoostScoring(results, boost, 10)
+	// All property values are 0 → all normalize to 1.0 (same value).
+	// Primary scores break the tie: a (1.0) > b (0.5) after normalization.
+	require.Len(t, got, 2)
+	assert.Equal(t, strfmt.UUID("a"), got[0].ID)
+}
+
+func TestApplyBoostScoring_PropertyValueNilSchema(t *testing.T) {
+	results := []search.Result{
+		makeResult("a", 1.0, nil),
+		makeResult("b", 0.5, map[string]interface{}{"likes": float64(100)}),
+	}
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{{
+			PropertyValue: &filters.PropertyValue{
+				Path:     &filters.Path{Property: "likes"},
+				Modifier: "none",
+			},
+			Weight: 1.0,
+		}},
+		Weight: 1.0,
+	}
+	got := applyBoostScoring(results, boost, 10)
+	// a has nil schema → likes=0, b has likes=100.
+	// With weight=1.0, only boost matters. b should rank first.
+	require.Len(t, got, 2)
+	assert.Equal(t, strfmt.UUID("b"), got[0].ID)
 }
