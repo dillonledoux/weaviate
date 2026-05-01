@@ -861,4 +861,208 @@ func TestBoost(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, resp.Results, 10)
 	})
+
+	// ── Hybrid search + boost ───────────────────────────────────
+
+	// All song names are "Song 000" .. "Song 099", so BM25 on "Song" matches all.
+	// Hybrid combines BM25 + vector. Boost should reorder the fused results.
+
+	t.Run("hybrid no boost baseline", func(t *testing.T) {
+		resp, err := grpcClient.Search(ctx, &pb.SearchRequest{
+			Collection: className,
+			Limit:      10,
+			Metadata:   &pb.MetadataRequest{Uuid: true, Score: true},
+			HybridSearch: &pb.Hybrid{
+				Query:      "Song",
+				Properties: []string{"name"},
+				NearVector: baseNearVector(),
+			},
+			Uses_127Api: true,
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Results, 10)
+	})
+
+	t.Run("hybrid boost filter likes > 500", func(t *testing.T) {
+		// Without boost: hybrid returns results by fused BM25+vector score.
+		// With boost: high-likes items should be promoted.
+		noBoostResp, err := grpcClient.Search(ctx, &pb.SearchRequest{
+			Collection: className,
+			Limit:      10,
+			Metadata:   &pb.MetadataRequest{Uuid: true, Score: true},
+			HybridSearch: &pb.Hybrid{
+				Query:      "Song",
+				Properties: []string{"name"},
+				NearVector: baseNearVector(),
+			},
+			Uses_127Api: true,
+		})
+		require.NoError(t, err)
+
+		boostResp, err := grpcClient.Search(ctx, &pb.SearchRequest{
+			Collection: className,
+			Limit:      10,
+			Metadata:   &pb.MetadataRequest{Uuid: true, Score: true},
+			HybridSearch: &pb.Hybrid{
+				Query:      "Song",
+				Properties: []string{"name"},
+				NearVector: baseNearVector(),
+			},
+			Boost: &pb.Boost{
+				Weight: float32Ptr(0.8),
+				Conditions: []*pb.BoostCondition{{
+					Filter: &pb.Filters{
+						Operator:  pb.Filters_OPERATOR_GREATER_THAN,
+						TestValue: &pb.Filters_ValueNumber{ValueNumber: 500},
+						Target:    &pb.FilterTarget{Target: &pb.FilterTarget_Property{Property: "likes"}},
+					},
+					Weight: float32Ptr(1.0),
+				}},
+			},
+			Uses_127Api: true,
+		})
+		require.NoError(t, err)
+		require.Len(t, boostResp.Results, 10)
+
+		noBoostIDs := resultIDs(noBoostResp.Results)
+		boostIDs := resultIDs(boostResp.Results)
+		assert.NotEqual(t, noBoostIDs, boostIDs,
+			"hybrid + boost should produce different ordering than hybrid alone")
+	})
+
+	t.Run("hybrid boost property_value likes", func(t *testing.T) {
+		resp, err := grpcClient.Search(ctx, &pb.SearchRequest{
+			Collection: className,
+			Limit:      10,
+			Metadata:   &pb.MetadataRequest{Uuid: true, Score: true},
+			HybridSearch: &pb.Hybrid{
+				Query:      "Song",
+				Properties: []string{"name"},
+				NearVector: baseNearVector(),
+			},
+			Boost: &pb.Boost{
+				Weight: float32Ptr(0.7),
+				Conditions: []*pb.BoostCondition{{
+					PropertyValue: &pb.PropertyValueFunction{
+						Path:     []string{"likes"},
+						Modifier: stringPtr("log1p"),
+					},
+					Weight: float32Ptr(1.0),
+				}},
+			},
+			Uses_127Api: true,
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Results, 10)
+	})
+
+	t.Run("hybrid boost decay date_published", func(t *testing.T) {
+		resp, err := grpcClient.Search(ctx, &pb.SearchRequest{
+			Collection: className,
+			Limit:      10,
+			Metadata:   &pb.MetadataRequest{Uuid: true, Score: true},
+			HybridSearch: &pb.Hybrid{
+				Query:      "Song",
+				Properties: []string{"name"},
+				NearVector: baseNearVector(),
+			},
+			Boost: &pb.Boost{
+				Weight: float32Ptr(0.6),
+				Conditions: []*pb.BoostCondition{{
+					Decay: &pb.DecayFunction{
+						Path:   []string{"date_published"},
+						Origin: "2025-01-01T00:00:00Z",
+						Scale:  "30d",
+						Curve:  stringPtr("exp"),
+					},
+					Weight: float32Ptr(1.0),
+				}},
+			},
+			Uses_127Api: true,
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Results, 10)
+	})
+
+	t.Run("hybrid boost blend multiple conditions", func(t *testing.T) {
+		resp, err := grpcClient.Search(ctx, &pb.SearchRequest{
+			Collection: className,
+			Limit:      10,
+			Metadata:   &pb.MetadataRequest{Uuid: true, Score: true},
+			HybridSearch: &pb.Hybrid{
+				Query:      "Song",
+				Properties: []string{"name"},
+				NearVector: baseNearVector(),
+			},
+			Boost: &pb.Boost{
+				Weight: float32Ptr(0.7),
+				Conditions: []*pb.BoostCondition{
+					{
+						Filter: &pb.Filters{
+							Operator:  pb.Filters_OPERATOR_GREATER_THAN,
+							TestValue: &pb.Filters_ValueNumber{ValueNumber: 300},
+							Target:    &pb.FilterTarget{Target: &pb.FilterTarget_Property{Property: "likes"}},
+						},
+						Weight: float32Ptr(2.0),
+					},
+					{
+						Decay: &pb.DecayFunction{
+							Path:   []string{"date_published"},
+							Origin: "2025-01-01T00:00:00Z",
+							Scale:  "60d",
+							Curve:  stringPtr("gauss"),
+						},
+						Weight: float32Ptr(1.0),
+					},
+				},
+			},
+			Uses_127Api: true,
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Results, 10)
+	})
+
+	t.Run("hybrid boost weight 0 has no effect", func(t *testing.T) {
+		noBoostResp, err := grpcClient.Search(ctx, &pb.SearchRequest{
+			Collection: className,
+			Limit:      10,
+			Metadata:   &pb.MetadataRequest{Uuid: true, Score: true},
+			HybridSearch: &pb.Hybrid{
+				Query:      "Song",
+				Properties: []string{"name"},
+				NearVector: baseNearVector(),
+			},
+			Uses_127Api: true,
+		})
+		require.NoError(t, err)
+
+		zeroWeightResp, err := grpcClient.Search(ctx, &pb.SearchRequest{
+			Collection: className,
+			Limit:      10,
+			Metadata:   &pb.MetadataRequest{Uuid: true, Score: true},
+			HybridSearch: &pb.Hybrid{
+				Query:      "Song",
+				Properties: []string{"name"},
+				NearVector: baseNearVector(),
+			},
+			Boost: &pb.Boost{
+				Weight: float32Ptr(0),
+				Conditions: []*pb.BoostCondition{{
+					Filter: &pb.Filters{
+						Operator:  pb.Filters_OPERATOR_GREATER_THAN,
+						TestValue: &pb.Filters_ValueNumber{ValueNumber: 500},
+						Target:    &pb.FilterTarget{Target: &pb.FilterTarget_Property{Property: "likes"}},
+					},
+					Weight: float32Ptr(1.0),
+				}},
+			},
+			Uses_127Api: true,
+		})
+		require.NoError(t, err)
+
+		noBoostIDs := resultIDs(noBoostResp.Results)
+		zeroWeightIDs := resultIDs(zeroWeightResp.Results)
+		assert.Equal(t, noBoostIDs, zeroWeightIDs,
+			"hybrid + boost with weight=0 should produce same ordering as no boost")
+	})
 }
