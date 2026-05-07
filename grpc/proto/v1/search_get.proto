@@ -222,24 +222,36 @@ message Boost {
 }
 
 message BoostCondition {
-  optional Filters filter = 1;
-  optional DecayFunction decay = 2;
+  oneof condition {
+    Filters filter = 1;
+    DecayFunction decay = 2;
+    PropertyValueFunction property_value = 4;
+  }
   optional float weight = 3;
-  optional PropertyValueFunction property_value = 4;
+}
+
+enum PropertyValueModifier {
+  PROPERTY_VALUE_MODIFIER_NONE = 0;
+  PROPERTY_VALUE_MODIFIER_LOG1P = 1;
+  PROPERTY_VALUE_MODIFIER_SQRT = 2;
+}
+
+enum DecayCurve {
+  DECAY_CURVE_EXPONENTIAL = 0;
+  DECAY_CURVE_GAUSS = 1;
+  DECAY_CURVE_LINEAR = 2;
 }
 
 message PropertyValueFunction {
-  // protolint:disable:next REPEATED_FIELD_NAMES_PLURALIZED
-  repeated string path = 1;
-  optional string modifier = 2;
+  string property = 1;
+  optional PropertyValueModifier modifier = 2;
 }
 
 message DecayFunction {
-  // protolint:disable:next REPEATED_FIELD_NAMES_PLURALIZED
-  repeated string path = 1;
+  string property = 1;
   string origin = 2;
   string scale = 3;
   optional string offset = 4;
-  optional string curve = 5;
+  optional DecayCurve curve = 5;
   optional float decay_value = 6;
 }

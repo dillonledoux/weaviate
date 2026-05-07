@@ -687,28 +687,27 @@ func (p *Parser) extractBoostCondition(cond *pb.BoostCondition, className, tenan
 		Weight: weight,
 	}
 
-	if cond.Filter != nil {
-		clause, err := ExtractFilters(cond.GetFilter(), p.authorizedGetClass, className, tenant)
+	switch c := cond.GetCondition().(type) {
+	case *pb.BoostCondition_Filter:
+		clause, err := ExtractFilters(c.Filter, p.authorizedGetClass, className, tenant)
 		if err != nil {
 			return filters.BoostCondition{}, fmt.Errorf("boost condition[%d] filter: %w", idx, err)
 		}
 		pc.Filter = &filters.LocalFilter{Root: &clause}
-	}
-
-	if cond.Decay != nil {
-		decay, err := extractDecayFunction(cond.GetDecay(), idx)
+	case *pb.BoostCondition_Decay:
+		decay, err := extractDecayFunction(c.Decay, idx)
 		if err != nil {
 			return filters.BoostCondition{}, err
 		}
 		pc.Decay = decay
-	}
-
-	if cond.PropertyValue != nil {
-		fv, err := extractPropertyValueFunction(cond.GetPropertyValue(), idx)
+	case *pb.BoostCondition_PropertyValue:
+		fv, err := extractPropertyValueFunction(c.PropertyValue, idx)
 		if err != nil {
 			return filters.BoostCondition{}, err
 		}
 		pc.PropertyValue = fv
+	default:
+		return filters.BoostCondition{}, fmt.Errorf("boost condition[%d]: exactly one of 'filter', 'decay', or 'property_value' must be set", idx)
 	}
 
 	return pc, nil
@@ -719,18 +718,23 @@ func extractPropertyValueFunction(fv *pb.PropertyValueFunction, condIdx int) (*f
 		return nil, nil
 	}
 
-	path := fv.GetPath()
-	if len(path) == 0 {
-		return nil, fmt.Errorf("boost condition[%d] property_value: path is required", condIdx)
+	prop := fv.GetProperty()
+	if prop == "" {
+		return nil, fmt.Errorf("boost condition[%d] property_value: property is required", condIdx)
 	}
 
 	modifier := "none"
-	if fv.Modifier != nil {
-		modifier = fv.GetModifier()
+	switch fv.GetModifier() {
+	case pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_LOG1P:
+		modifier = "log1p"
+	case pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_SQRT:
+		modifier = "sqrt"
+	case pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_NONE:
+		modifier = "none"
 	}
 
 	return &filters.PropertyValue{
-		Path:     &filters.Path{Property: schema.PropertyName(path[0])},
+		Path:     &filters.Path{Property: schema.PropertyName(prop)},
 		Modifier: modifier,
 	}, nil
 }
@@ -740,14 +744,19 @@ func extractDecayFunction(d *pb.DecayFunction, condIdx int) (*filters.Decay, err
 		return nil, nil
 	}
 
-	path := d.GetPath()
-	if len(path) == 0 {
-		return nil, fmt.Errorf("boost condition[%d] decay: path is required", condIdx)
+	prop := d.GetProperty()
+	if prop == "" {
+		return nil, fmt.Errorf("boost condition[%d] decay: property is required", condIdx)
 	}
 
 	curve := "exp"
-	if d.Curve != nil {
-		curve = d.GetCurve()
+	switch d.GetCurve() {
+	case pb.DecayCurve_DECAY_CURVE_GAUSS:
+		curve = "gauss"
+	case pb.DecayCurve_DECAY_CURVE_LINEAR:
+		curve = "linear"
+	case pb.DecayCurve_DECAY_CURVE_EXPONENTIAL:
+		curve = "exp"
 	}
 
 	decayValue := float32(0.5)
@@ -761,7 +770,7 @@ func extractDecayFunction(d *pb.DecayFunction, condIdx int) (*filters.Decay, err
 	}
 
 	return &filters.Decay{
-		Path:       &filters.Path{Property: schema.PropertyName(path[0])},
+		Path:       &filters.Path{Property: schema.PropertyName(prop)},
 		Origin:     d.GetOrigin(),
 		Scale:      d.GetScale(),
 		Offset:     offset,

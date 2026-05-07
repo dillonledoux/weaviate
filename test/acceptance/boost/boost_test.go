@@ -33,7 +33,6 @@ const className = "Song"
 
 func float32Ptr(f float32) *float32 { return &f }
 func uint32Ptr(u uint32) *uint32    { return &u }
-func stringPtr(s string) *string    { return &s }
 
 // deterministicVector returns a unit-ish 4D vector seeded by index.
 func deterministicVector(i int) []float32 {
@@ -194,11 +193,11 @@ func TestBoost(t *testing.T) {
 			Boost: &pb.Boost{
 				Weight: float32Ptr(0.8),
 				Conditions: []*pb.BoostCondition{{
-					Filter: &pb.Filters{
+					Condition: &pb.BoostCondition_Filter{Filter: &pb.Filters{
 						Operator:  pb.Filters_OPERATOR_GREATER_THAN,
 						TestValue: &pb.Filters_ValueNumber{ValueNumber: 500},
 						Target:    &pb.FilterTarget{Target: &pb.FilterTarget_Property{Property: "likes"}},
-					},
+					}},
 					Weight: float32Ptr(1.0),
 				}},
 			},
@@ -226,11 +225,11 @@ func TestBoost(t *testing.T) {
 			Boost: &pb.Boost{
 				Weight: float32Ptr(0.8),
 				Conditions: []*pb.BoostCondition{{
-					Filter: &pb.Filters{
+					Condition: &pb.BoostCondition_Filter{Filter: &pb.Filters{
 						Operator:  pb.Filters_OPERATOR_GREATER_THAN,
 						TestValue: &pb.Filters_ValueNumber{ValueNumber: 500},
 						Target:    &pb.FilterTarget{Target: &pb.FilterTarget_Property{Property: "likes"}},
-					},
+					}},
 					Weight: float32Ptr(1.0),
 				}},
 			},
@@ -253,19 +252,19 @@ func TestBoost(t *testing.T) {
 				Weight: float32Ptr(0.9),
 				Conditions: []*pb.BoostCondition{
 					{
-						Filter: &pb.Filters{
+						Condition: &pb.BoostCondition_Filter{Filter: &pb.Filters{
 							Operator:  pb.Filters_OPERATOR_GREATER_THAN,
 							TestValue: &pb.Filters_ValueNumber{ValueNumber: 500},
 							Target:    &pb.FilterTarget{Target: &pb.FilterTarget_Property{Property: "likes"}},
-						},
+						}},
 						Weight: float32Ptr(2.0),
 					},
 					{
-						Filter: &pb.Filters{
+						Condition: &pb.BoostCondition_Filter{Filter: &pb.Filters{
 							Operator:  pb.Filters_OPERATOR_GREATER_THAN,
 							TestValue: &pb.Filters_ValueText{ValueText: cutoff},
 							Target:    &pb.FilterTarget{Target: &pb.FilterTarget_Property{Property: "date_published"}},
-						},
+						}},
 						Weight: float32Ptr(1.0),
 					},
 				},
@@ -287,10 +286,10 @@ func TestBoost(t *testing.T) {
 			Boost: &pb.Boost{
 				Weight: float32Ptr(0.7),
 				Conditions: []*pb.BoostCondition{{
-					PropertyValue: &pb.PropertyValueFunction{
-						Path:     []string{"likes"},
-						Modifier: stringPtr("none"),
-					},
+					Condition: &pb.BoostCondition_PropertyValue{PropertyValue: &pb.PropertyValueFunction{
+						Property: "likes",
+						Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_NONE.Enum(),
+					}},
 					Weight: float32Ptr(1.0),
 				}},
 			},
@@ -309,10 +308,10 @@ func TestBoost(t *testing.T) {
 			Boost: &pb.Boost{
 				Weight: float32Ptr(0.7),
 				Conditions: []*pb.BoostCondition{{
-					PropertyValue: &pb.PropertyValueFunction{
-						Path:     []string{"likes"},
-						Modifier: stringPtr("log1p"),
-					},
+					Condition: &pb.BoostCondition_PropertyValue{PropertyValue: &pb.PropertyValueFunction{
+						Property: "likes",
+						Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_LOG1P.Enum(),
+					}},
 					Weight: float32Ptr(1.0),
 				}},
 			},
@@ -331,10 +330,10 @@ func TestBoost(t *testing.T) {
 			Boost: &pb.Boost{
 				Weight: float32Ptr(0.7),
 				Conditions: []*pb.BoostCondition{{
-					PropertyValue: &pb.PropertyValueFunction{
-						Path:     []string{"likes"},
-						Modifier: stringPtr("sqrt"),
-					},
+					Condition: &pb.BoostCondition_PropertyValue{PropertyValue: &pb.PropertyValueFunction{
+						Property: "likes",
+						Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_SQRT.Enum(),
+					}},
 					Weight: float32Ptr(1.0),
 				}},
 			},
@@ -348,7 +347,7 @@ func TestBoost(t *testing.T) {
 	// With log1p, the gap between the top-likes and mid-likes items should be smaller,
 	// meaning vector distance has more influence, so ordering is closer to the baseline.
 	t.Run("property_value log1p vs none ordering differs", func(t *testing.T) {
-		makeReq := func(modifier string) *pb.SearchRequest {
+		makeReq := func(modifier pb.PropertyValueModifier) *pb.SearchRequest {
 			return &pb.SearchRequest{
 				Collection: className,
 				Limit:      20,
@@ -357,19 +356,19 @@ func TestBoost(t *testing.T) {
 				Boost: &pb.Boost{
 					Weight: float32Ptr(0.5),
 					Conditions: []*pb.BoostCondition{{
-						PropertyValue: &pb.PropertyValueFunction{
-							Path:     []string{"likes"},
-							Modifier: &modifier,
-						},
+						Condition: &pb.BoostCondition_PropertyValue{PropertyValue: &pb.PropertyValueFunction{
+							Property: "likes",
+							Modifier: modifier.Enum(),
+						}},
 						Weight: float32Ptr(1.0),
 					}},
 				},
 				Uses_127Api: true,
 			}
 		}
-		noneResp, err := grpcClient.Search(ctx, makeReq("none"))
+		noneResp, err := grpcClient.Search(ctx, makeReq(pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_NONE))
 		require.NoError(t, err)
-		log1pResp, err := grpcClient.Search(ctx, makeReq("log1p"))
+		log1pResp, err := grpcClient.Search(ctx, makeReq(pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_LOG1P))
 		require.NoError(t, err)
 
 		noneIDs := resultIDs(noneResp.Results)
@@ -389,12 +388,12 @@ func TestBoost(t *testing.T) {
 			Boost: &pb.Boost{
 				Weight: float32Ptr(0.8),
 				Conditions: []*pb.BoostCondition{{
-					Decay: &pb.DecayFunction{
-						Path:   []string{"date_published"},
-						Origin: "2025-01-01T00:00:00Z",
-						Scale:  "30d",
-						Curve:  stringPtr("exp"),
-					},
+					Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+						Property: "date_published",
+						Origin:   "2025-01-01T00:00:00Z",
+						Scale:    "30d",
+						Curve:    pb.DecayCurve_DECAY_CURVE_EXPONENTIAL.Enum(),
+					}},
 					Weight: float32Ptr(1.0),
 				}},
 			},
@@ -413,12 +412,12 @@ func TestBoost(t *testing.T) {
 			Boost: &pb.Boost{
 				Weight: float32Ptr(0.8),
 				Conditions: []*pb.BoostCondition{{
-					Decay: &pb.DecayFunction{
-						Path:   []string{"date_published"},
-						Origin: "2025-01-01T00:00:00Z",
-						Scale:  "30d",
-						Curve:  stringPtr("gauss"),
-					},
+					Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+						Property: "date_published",
+						Origin:   "2025-01-01T00:00:00Z",
+						Scale:    "30d",
+						Curve:    pb.DecayCurve_DECAY_CURVE_GAUSS.Enum(),
+					}},
 					Weight: float32Ptr(1.0),
 				}},
 			},
@@ -437,12 +436,12 @@ func TestBoost(t *testing.T) {
 			Boost: &pb.Boost{
 				Weight: float32Ptr(0.8),
 				Conditions: []*pb.BoostCondition{{
-					Decay: &pb.DecayFunction{
-						Path:   []string{"date_published"},
-						Origin: "2025-01-01T00:00:00Z",
-						Scale:  "30d",
-						Curve:  stringPtr("linear"),
-					},
+					Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+						Property: "date_published",
+						Origin:   "2025-01-01T00:00:00Z",
+						Scale:    "30d",
+						Curve:    pb.DecayCurve_DECAY_CURVE_LINEAR.Enum(),
+					}},
 					Weight: float32Ptr(1.0),
 				}},
 			},
@@ -462,11 +461,11 @@ func TestBoost(t *testing.T) {
 			Boost: &pb.Boost{
 				Weight: float32Ptr(0.8),
 				Conditions: []*pb.BoostCondition{{
-					Decay: &pb.DecayFunction{
-						Path:  []string{"date_published"},
-						Scale: "60d",
-						Curve: stringPtr("exp"),
-					},
+					Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+						Property: "date_published",
+						Scale:    "60d",
+						Curve:    pb.DecayCurve_DECAY_CURVE_EXPONENTIAL.Enum(),
+					}},
 					Weight: float32Ptr(1.0),
 				}},
 			},
@@ -487,12 +486,12 @@ func TestBoost(t *testing.T) {
 				Boost: &pb.Boost{
 					Weight: float32Ptr(0.5),
 					Conditions: []*pb.BoostCondition{{
-						Decay: &pb.DecayFunction{
-							Path:   []string{"date_published"},
-							Origin: "2025-01-01T00:00:00Z",
-							Scale:  scale,
-							Curve:  stringPtr("exp"),
-						},
+						Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+							Property: "date_published",
+							Origin:   "2025-01-01T00:00:00Z",
+							Scale:    scale,
+							Curve:    pb.DecayCurve_DECAY_CURVE_EXPONENTIAL.Enum(),
+						}},
 						Weight: float32Ptr(1.0),
 					}},
 				},
@@ -520,13 +519,13 @@ func TestBoost(t *testing.T) {
 				Boost: &pb.Boost{
 					Weight: float32Ptr(0.5),
 					Conditions: []*pb.BoostCondition{{
-						Decay: &pb.DecayFunction{
-							Path:       []string{"date_published"},
+						Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+							Property:   "date_published",
 							Origin:     "2025-01-01T00:00:00Z",
 							Scale:      "30d",
-							Curve:      stringPtr("exp"),
+							Curve:      pb.DecayCurve_DECAY_CURVE_EXPONENTIAL.Enum(),
 							DecayValue: float32Ptr(dv),
-						},
+						}},
 						Weight: float32Ptr(1.0),
 					}},
 				},
@@ -545,7 +544,7 @@ func TestBoost(t *testing.T) {
 
 	// Different curves should produce different orderings.
 	t.Run("decay different curves produce different orderings", func(t *testing.T) {
-		makeDecayReq := func(curve string) *pb.SearchRequest {
+		makeDecayReq := func(curve pb.DecayCurve) *pb.SearchRequest {
 			return &pb.SearchRequest{
 				Collection: className,
 				Limit:      20,
@@ -554,21 +553,21 @@ func TestBoost(t *testing.T) {
 				Boost: &pb.Boost{
 					Weight: float32Ptr(0.5),
 					Conditions: []*pb.BoostCondition{{
-						Decay: &pb.DecayFunction{
-							Path:   []string{"date_published"},
-							Origin: "2025-01-01T00:00:00Z",
-							Scale:  "30d",
-							Curve:  &curve,
-						},
+						Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+							Property: "date_published",
+							Origin:   "2025-01-01T00:00:00Z",
+							Scale:    "30d",
+							Curve:    curve.Enum(),
+						}},
 						Weight: float32Ptr(1.0),
 					}},
 				},
 				Uses_127Api: true,
 			}
 		}
-		expResp, err := grpcClient.Search(ctx, makeDecayReq("exp"))
+		expResp, err := grpcClient.Search(ctx, makeDecayReq(pb.DecayCurve_DECAY_CURVE_EXPONENTIAL))
 		require.NoError(t, err)
-		linearResp, err := grpcClient.Search(ctx, makeDecayReq("linear"))
+		linearResp, err := grpcClient.Search(ctx, makeDecayReq(pb.DecayCurve_DECAY_CURVE_LINEAR))
 		require.NoError(t, err)
 
 		expIDs := resultIDs(expResp.Results)
@@ -588,20 +587,20 @@ func TestBoost(t *testing.T) {
 				Weight: float32Ptr(0.7),
 				Conditions: []*pb.BoostCondition{
 					{
-						Filter: &pb.Filters{
+						Condition: &pb.BoostCondition_Filter{Filter: &pb.Filters{
 							Operator:  pb.Filters_OPERATOR_GREATER_THAN,
 							TestValue: &pb.Filters_ValueNumber{ValueNumber: 500},
 							Target:    &pb.FilterTarget{Target: &pb.FilterTarget_Property{Property: "likes"}},
-						},
+						}},
 						Weight: float32Ptr(3.0),
 					},
 					{
-						Decay: &pb.DecayFunction{
-							Path:   []string{"date_published"},
-							Origin: "2025-01-01T00:00:00Z",
-							Scale:  "30d",
-							Curve:  stringPtr("exp"),
-						},
+						Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+							Property: "date_published",
+							Origin:   "2025-01-01T00:00:00Z",
+							Scale:    "30d",
+							Curve:    pb.DecayCurve_DECAY_CURVE_EXPONENTIAL.Enum(),
+						}},
 						Weight: float32Ptr(1.0),
 					},
 				},
@@ -622,19 +621,19 @@ func TestBoost(t *testing.T) {
 				Weight: float32Ptr(0.6),
 				Conditions: []*pb.BoostCondition{
 					{
-						PropertyValue: &pb.PropertyValueFunction{
-							Path:     []string{"likes"},
-							Modifier: stringPtr("log1p"),
-						},
+						Condition: &pb.BoostCondition_PropertyValue{PropertyValue: &pb.PropertyValueFunction{
+							Property: "likes",
+							Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_LOG1P.Enum(),
+						}},
 						Weight: float32Ptr(2.0),
 					},
 					{
-						Decay: &pb.DecayFunction{
-							Path:   []string{"date_published"},
-							Origin: "2025-01-01T00:00:00Z",
-							Scale:  "14d",
-							Curve:  stringPtr("gauss"),
-						},
+						Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+							Property: "date_published",
+							Origin:   "2025-01-01T00:00:00Z",
+							Scale:    "14d",
+							Curve:    pb.DecayCurve_DECAY_CURVE_GAUSS.Enum(),
+						}},
 						Weight: float32Ptr(1.5),
 					},
 				},
@@ -655,27 +654,27 @@ func TestBoost(t *testing.T) {
 				Weight: float32Ptr(0.8),
 				Conditions: []*pb.BoostCondition{
 					{
-						Filter: &pb.Filters{
+						Condition: &pb.BoostCondition_Filter{Filter: &pb.Filters{
 							Operator:  pb.Filters_OPERATOR_GREATER_THAN,
 							TestValue: &pb.Filters_ValueNumber{ValueNumber: 300},
 							Target:    &pb.FilterTarget{Target: &pb.FilterTarget_Property{Property: "likes"}},
-						},
+						}},
 						Weight: float32Ptr(1.0),
 					},
 					{
-						PropertyValue: &pb.PropertyValueFunction{
-							Path:     []string{"likes"},
-							Modifier: stringPtr("sqrt"),
-						},
+						Condition: &pb.BoostCondition_PropertyValue{PropertyValue: &pb.PropertyValueFunction{
+							Property: "likes",
+							Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_SQRT.Enum(),
+						}},
 						Weight: float32Ptr(2.0),
 					},
 					{
-						Decay: &pb.DecayFunction{
-							Path:   []string{"date_published"},
-							Origin: "2025-01-01T00:00:00Z",
-							Scale:  "60d",
-							Curve:  stringPtr("linear"),
-						},
+						Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+							Property: "date_published",
+							Origin:   "2025-01-01T00:00:00Z",
+							Scale:    "60d",
+							Curve:    pb.DecayCurve_DECAY_CURVE_LINEAR.Enum(),
+						}},
 						Weight: float32Ptr(1.5),
 					},
 				},
@@ -698,19 +697,19 @@ func TestBoost(t *testing.T) {
 					Weight: float32Ptr(w),
 					Conditions: []*pb.BoostCondition{
 						{
-							PropertyValue: &pb.PropertyValueFunction{
-								Path:     []string{"likes"},
-								Modifier: stringPtr("none"),
-							},
+							Condition: &pb.BoostCondition_PropertyValue{PropertyValue: &pb.PropertyValueFunction{
+								Property: "likes",
+								Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_NONE.Enum(),
+							}},
 							Weight: float32Ptr(1.0),
 						},
 						{
-							Decay: &pb.DecayFunction{
-								Path:   []string{"date_published"},
-								Origin: "2025-01-01T00:00:00Z",
-								Scale:  "30d",
-								Curve:  stringPtr("exp"),
-							},
+							Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+								Property: "date_published",
+								Origin:   "2025-01-01T00:00:00Z",
+								Scale:    "30d",
+								Curve:    pb.DecayCurve_DECAY_CURVE_EXPONENTIAL.Enum(),
+							}},
 							Weight: float32Ptr(1.0),
 						},
 					},
@@ -778,11 +777,11 @@ func TestBoost(t *testing.T) {
 		boostLikes := &pb.Boost{
 			Weight: float32Ptr(1.0),
 			Conditions: []*pb.BoostCondition{{
-				Filter: &pb.Filters{
+				Condition: &pb.BoostCondition_Filter{Filter: &pb.Filters{
 					Operator:  pb.Filters_OPERATOR_GREATER_THAN,
 					TestValue: &pb.Filters_ValueNumber{ValueNumber: 800},
 					Target:    &pb.FilterTarget{Target: &pb.FilterTarget_Property{Property: "likes"}},
-				},
+				}},
 				Weight: float32Ptr(1.0),
 			}},
 		}
@@ -838,20 +837,20 @@ func TestBoost(t *testing.T) {
 				Conditions: []*pb.BoostCondition{
 					{
 						// Promote high likes.
-						PropertyValue: &pb.PropertyValueFunction{
-							Path:     []string{"likes"},
-							Modifier: stringPtr("none"),
-						},
+						Condition: &pb.BoostCondition_PropertyValue{PropertyValue: &pb.PropertyValueFunction{
+							Property: "likes",
+							Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_NONE.Enum(),
+						}},
 						Weight: float32Ptr(2.0),
 					},
 					{
 						// Demote old items.
-						Decay: &pb.DecayFunction{
-							Path:   []string{"date_published"},
-							Origin: "2025-01-01T00:00:00Z",
-							Scale:  "30d",
-							Curve:  stringPtr("exp"),
-						},
+						Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+							Property: "date_published",
+							Origin:   "2025-01-01T00:00:00Z",
+							Scale:    "30d",
+							Curve:    pb.DecayCurve_DECAY_CURVE_EXPONENTIAL.Enum(),
+						}},
 						Weight: float32Ptr(-0.5),
 					},
 				},
@@ -911,11 +910,11 @@ func TestBoost(t *testing.T) {
 			Boost: &pb.Boost{
 				Weight: float32Ptr(0.8),
 				Conditions: []*pb.BoostCondition{{
-					Filter: &pb.Filters{
+					Condition: &pb.BoostCondition_Filter{Filter: &pb.Filters{
 						Operator:  pb.Filters_OPERATOR_GREATER_THAN,
 						TestValue: &pb.Filters_ValueNumber{ValueNumber: 500},
 						Target:    &pb.FilterTarget{Target: &pb.FilterTarget_Property{Property: "likes"}},
-					},
+					}},
 					Weight: float32Ptr(1.0),
 				}},
 			},
@@ -943,10 +942,10 @@ func TestBoost(t *testing.T) {
 			Boost: &pb.Boost{
 				Weight: float32Ptr(0.7),
 				Conditions: []*pb.BoostCondition{{
-					PropertyValue: &pb.PropertyValueFunction{
-						Path:     []string{"likes"},
-						Modifier: stringPtr("log1p"),
-					},
+					Condition: &pb.BoostCondition_PropertyValue{PropertyValue: &pb.PropertyValueFunction{
+						Property: "likes",
+						Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_LOG1P.Enum(),
+					}},
 					Weight: float32Ptr(1.0),
 				}},
 			},
@@ -969,12 +968,12 @@ func TestBoost(t *testing.T) {
 			Boost: &pb.Boost{
 				Weight: float32Ptr(0.6),
 				Conditions: []*pb.BoostCondition{{
-					Decay: &pb.DecayFunction{
-						Path:   []string{"date_published"},
-						Origin: "2025-01-01T00:00:00Z",
-						Scale:  "30d",
-						Curve:  stringPtr("exp"),
-					},
+					Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+						Property: "date_published",
+						Origin:   "2025-01-01T00:00:00Z",
+						Scale:    "30d",
+						Curve:    pb.DecayCurve_DECAY_CURVE_EXPONENTIAL.Enum(),
+					}},
 					Weight: float32Ptr(1.0),
 				}},
 			},
@@ -998,20 +997,20 @@ func TestBoost(t *testing.T) {
 				Weight: float32Ptr(0.7),
 				Conditions: []*pb.BoostCondition{
 					{
-						Filter: &pb.Filters{
+						Condition: &pb.BoostCondition_Filter{Filter: &pb.Filters{
 							Operator:  pb.Filters_OPERATOR_GREATER_THAN,
 							TestValue: &pb.Filters_ValueNumber{ValueNumber: 300},
 							Target:    &pb.FilterTarget{Target: &pb.FilterTarget_Property{Property: "likes"}},
-						},
+						}},
 						Weight: float32Ptr(2.0),
 					},
 					{
-						Decay: &pb.DecayFunction{
-							Path:   []string{"date_published"},
-							Origin: "2025-01-01T00:00:00Z",
-							Scale:  "60d",
-							Curve:  stringPtr("gauss"),
-						},
+						Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+							Property: "date_published",
+							Origin:   "2025-01-01T00:00:00Z",
+							Scale:    "60d",
+							Curve:    pb.DecayCurve_DECAY_CURVE_GAUSS.Enum(),
+						}},
 						Weight: float32Ptr(1.0),
 					},
 				},
@@ -1048,11 +1047,11 @@ func TestBoost(t *testing.T) {
 			Boost: &pb.Boost{
 				Weight: float32Ptr(0),
 				Conditions: []*pb.BoostCondition{{
-					Filter: &pb.Filters{
+					Condition: &pb.BoostCondition_Filter{Filter: &pb.Filters{
 						Operator:  pb.Filters_OPERATOR_GREATER_THAN,
 						TestValue: &pb.Filters_ValueNumber{ValueNumber: 500},
 						Target:    &pb.FilterTarget{Target: &pb.FilterTarget_Property{Property: "likes"}},
-					},
+					}},
 					Weight: float32Ptr(1.0),
 				}},
 			},

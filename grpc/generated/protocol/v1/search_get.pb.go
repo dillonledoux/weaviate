@@ -18,6 +18,104 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type PropertyValueModifier int32
+
+const (
+	PropertyValueModifier_PROPERTY_VALUE_MODIFIER_NONE  PropertyValueModifier = 0
+	PropertyValueModifier_PROPERTY_VALUE_MODIFIER_LOG1P PropertyValueModifier = 1
+	PropertyValueModifier_PROPERTY_VALUE_MODIFIER_SQRT  PropertyValueModifier = 2
+)
+
+// Enum value maps for PropertyValueModifier.
+var (
+	PropertyValueModifier_name = map[int32]string{
+		0: "PROPERTY_VALUE_MODIFIER_NONE",
+		1: "PROPERTY_VALUE_MODIFIER_LOG1P",
+		2: "PROPERTY_VALUE_MODIFIER_SQRT",
+	}
+	PropertyValueModifier_value = map[string]int32{
+		"PROPERTY_VALUE_MODIFIER_NONE":  0,
+		"PROPERTY_VALUE_MODIFIER_LOG1P": 1,
+		"PROPERTY_VALUE_MODIFIER_SQRT":  2,
+	}
+)
+
+func (x PropertyValueModifier) Enum() *PropertyValueModifier {
+	p := new(PropertyValueModifier)
+	*p = x
+	return p
+}
+
+func (x PropertyValueModifier) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PropertyValueModifier) Descriptor() protoreflect.EnumDescriptor {
+	return file_v1_search_get_proto_enumTypes[0].Descriptor()
+}
+
+func (PropertyValueModifier) Type() protoreflect.EnumType {
+	return &file_v1_search_get_proto_enumTypes[0]
+}
+
+func (x PropertyValueModifier) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PropertyValueModifier.Descriptor instead.
+func (PropertyValueModifier) EnumDescriptor() ([]byte, []int) {
+	return file_v1_search_get_proto_rawDescGZIP(), []int{0}
+}
+
+type DecayCurve int32
+
+const (
+	DecayCurve_DECAY_CURVE_EXPONENTIAL DecayCurve = 0
+	DecayCurve_DECAY_CURVE_GAUSS       DecayCurve = 1
+	DecayCurve_DECAY_CURVE_LINEAR      DecayCurve = 2
+)
+
+// Enum value maps for DecayCurve.
+var (
+	DecayCurve_name = map[int32]string{
+		0: "DECAY_CURVE_EXPONENTIAL",
+		1: "DECAY_CURVE_GAUSS",
+		2: "DECAY_CURVE_LINEAR",
+	}
+	DecayCurve_value = map[string]int32{
+		"DECAY_CURVE_EXPONENTIAL": 0,
+		"DECAY_CURVE_GAUSS":       1,
+		"DECAY_CURVE_LINEAR":      2,
+	}
+)
+
+func (x DecayCurve) Enum() *DecayCurve {
+	p := new(DecayCurve)
+	*p = x
+	return p
+}
+
+func (x DecayCurve) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DecayCurve) Descriptor() protoreflect.EnumDescriptor {
+	return file_v1_search_get_proto_enumTypes[1].Descriptor()
+}
+
+func (DecayCurve) Type() protoreflect.EnumType {
+	return &file_v1_search_get_proto_enumTypes[1]
+}
+
+func (x DecayCurve) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DecayCurve.Descriptor instead.
+func (DecayCurve) EnumDescriptor() ([]byte, []int) {
+	return file_v1_search_get_proto_rawDescGZIP(), []int{1}
+}
+
 type SearchRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// required
@@ -1544,11 +1642,14 @@ func (x *Boost) GetDepth() uint32 {
 }
 
 type BoostCondition struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Filter        *Filters               `protobuf:"bytes,1,opt,name=filter,proto3,oneof" json:"filter,omitempty"`
-	Decay         *DecayFunction         `protobuf:"bytes,2,opt,name=decay,proto3,oneof" json:"decay,omitempty"`
-	Weight        *float32               `protobuf:"fixed32,3,opt,name=weight,proto3,oneof" json:"weight,omitempty"`
-	PropertyValue *PropertyValueFunction `protobuf:"bytes,4,opt,name=property_value,json=propertyValue,proto3,oneof" json:"property_value,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Condition:
+	//
+	//	*BoostCondition_Filter
+	//	*BoostCondition_Decay
+	//	*BoostCondition_PropertyValue
+	Condition     isBoostCondition_Condition `protobuf_oneof:"condition"`
+	Weight        *float32                   `protobuf:"fixed32,3,opt,name=weight,proto3,oneof" json:"weight,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1583,16 +1684,36 @@ func (*BoostCondition) Descriptor() ([]byte, []int) {
 	return file_v1_search_get_proto_rawDescGZIP(), []int{17}
 }
 
+func (x *BoostCondition) GetCondition() isBoostCondition_Condition {
+	if x != nil {
+		return x.Condition
+	}
+	return nil
+}
+
 func (x *BoostCondition) GetFilter() *Filters {
 	if x != nil {
-		return x.Filter
+		if x, ok := x.Condition.(*BoostCondition_Filter); ok {
+			return x.Filter
+		}
 	}
 	return nil
 }
 
 func (x *BoostCondition) GetDecay() *DecayFunction {
 	if x != nil {
-		return x.Decay
+		if x, ok := x.Condition.(*BoostCondition_Decay); ok {
+			return x.Decay
+		}
+	}
+	return nil
+}
+
+func (x *BoostCondition) GetPropertyValue() *PropertyValueFunction {
+	if x != nil {
+		if x, ok := x.Condition.(*BoostCondition_PropertyValue); ok {
+			return x.PropertyValue
+		}
 	}
 	return nil
 }
@@ -1604,18 +1725,32 @@ func (x *BoostCondition) GetWeight() float32 {
 	return 0
 }
 
-func (x *BoostCondition) GetPropertyValue() *PropertyValueFunction {
-	if x != nil {
-		return x.PropertyValue
-	}
-	return nil
+type isBoostCondition_Condition interface {
+	isBoostCondition_Condition()
 }
 
+type BoostCondition_Filter struct {
+	Filter *Filters `protobuf:"bytes,1,opt,name=filter,proto3,oneof"`
+}
+
+type BoostCondition_Decay struct {
+	Decay *DecayFunction `protobuf:"bytes,2,opt,name=decay,proto3,oneof"`
+}
+
+type BoostCondition_PropertyValue struct {
+	PropertyValue *PropertyValueFunction `protobuf:"bytes,4,opt,name=property_value,json=propertyValue,proto3,oneof"`
+}
+
+func (*BoostCondition_Filter) isBoostCondition_Condition() {}
+
+func (*BoostCondition_Decay) isBoostCondition_Condition() {}
+
+func (*BoostCondition_PropertyValue) isBoostCondition_Condition() {}
+
 type PropertyValueFunction struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// protolint:disable:next REPEATED_FIELD_NAMES_PLURALIZED
-	Path          []string `protobuf:"bytes,1,rep,name=path,proto3" json:"path,omitempty"`
-	Modifier      *string  `protobuf:"bytes,2,opt,name=modifier,proto3,oneof" json:"modifier,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Property      string                 `protobuf:"bytes,1,opt,name=property,proto3" json:"property,omitempty"`
+	Modifier      *PropertyValueModifier `protobuf:"varint,2,opt,name=modifier,proto3,enum=weaviate.v1.PropertyValueModifier,oneof" json:"modifier,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1650,29 +1785,28 @@ func (*PropertyValueFunction) Descriptor() ([]byte, []int) {
 	return file_v1_search_get_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *PropertyValueFunction) GetPath() []string {
+func (x *PropertyValueFunction) GetProperty() string {
 	if x != nil {
-		return x.Path
-	}
-	return nil
-}
-
-func (x *PropertyValueFunction) GetModifier() string {
-	if x != nil && x.Modifier != nil {
-		return *x.Modifier
+		return x.Property
 	}
 	return ""
 }
 
+func (x *PropertyValueFunction) GetModifier() PropertyValueModifier {
+	if x != nil && x.Modifier != nil {
+		return *x.Modifier
+	}
+	return PropertyValueModifier_PROPERTY_VALUE_MODIFIER_NONE
+}
+
 type DecayFunction struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// protolint:disable:next REPEATED_FIELD_NAMES_PLURALIZED
-	Path          []string `protobuf:"bytes,1,rep,name=path,proto3" json:"path,omitempty"`
-	Origin        string   `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
-	Scale         string   `protobuf:"bytes,3,opt,name=scale,proto3" json:"scale,omitempty"`
-	Offset        *string  `protobuf:"bytes,4,opt,name=offset,proto3,oneof" json:"offset,omitempty"`
-	Curve         *string  `protobuf:"bytes,5,opt,name=curve,proto3,oneof" json:"curve,omitempty"`
-	DecayValue    *float32 `protobuf:"fixed32,6,opt,name=decay_value,json=decayValue,proto3,oneof" json:"decay_value,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Property      string                 `protobuf:"bytes,1,opt,name=property,proto3" json:"property,omitempty"`
+	Origin        string                 `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
+	Scale         string                 `protobuf:"bytes,3,opt,name=scale,proto3" json:"scale,omitempty"`
+	Offset        *string                `protobuf:"bytes,4,opt,name=offset,proto3,oneof" json:"offset,omitempty"`
+	Curve         *DecayCurve            `protobuf:"varint,5,opt,name=curve,proto3,enum=weaviate.v1.DecayCurve,oneof" json:"curve,omitempty"`
+	DecayValue    *float32               `protobuf:"fixed32,6,opt,name=decay_value,json=decayValue,proto3,oneof" json:"decay_value,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1707,11 +1841,11 @@ func (*DecayFunction) Descriptor() ([]byte, []int) {
 	return file_v1_search_get_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *DecayFunction) GetPath() []string {
+func (x *DecayFunction) GetProperty() string {
 	if x != nil {
-		return x.Path
+		return x.Property
 	}
-	return nil
+	return ""
 }
 
 func (x *DecayFunction) GetOrigin() string {
@@ -1735,11 +1869,11 @@ func (x *DecayFunction) GetOffset() string {
 	return ""
 }
 
-func (x *DecayFunction) GetCurve() string {
+func (x *DecayFunction) GetCurve() DecayCurve {
 	if x != nil && x.Curve != nil {
 		return *x.Curve
 	}
-	return ""
+	return DecayCurve_DECAY_CURVE_EXPONENTIAL
 }
 
 func (x *DecayFunction) GetDecayValue() float32 {
@@ -2070,31 +2204,38 @@ const file_v1_search_get_proto_rawDesc = "" +
 	"\x06weight\x18\x02 \x01(\x02H\x00R\x06weight\x88\x01\x01\x12\x19\n" +
 	"\x05depth\x18\x03 \x01(\rH\x01R\x05depth\x88\x01\x01B\t\n" +
 	"\a_weightB\b\n" +
-	"\x06_depth\"\x9a\x02\n" +
-	"\x0eBoostCondition\x121\n" +
-	"\x06filter\x18\x01 \x01(\v2\x14.weaviate.v1.FiltersH\x00R\x06filter\x88\x01\x01\x125\n" +
-	"\x05decay\x18\x02 \x01(\v2\x1a.weaviate.v1.DecayFunctionH\x01R\x05decay\x88\x01\x01\x12\x1b\n" +
-	"\x06weight\x18\x03 \x01(\x02H\x02R\x06weight\x88\x01\x01\x12N\n" +
-	"\x0eproperty_value\x18\x04 \x01(\v2\".weaviate.v1.PropertyValueFunctionH\x03R\rpropertyValue\x88\x01\x01B\t\n" +
-	"\a_filterB\b\n" +
-	"\x06_decayB\t\n" +
-	"\a_weightB\x11\n" +
-	"\x0f_property_value\"Y\n" +
-	"\x15PropertyValueFunction\x12\x12\n" +
-	"\x04path\x18\x01 \x03(\tR\x04path\x12\x1f\n" +
-	"\bmodifier\x18\x02 \x01(\tH\x00R\bmodifier\x88\x01\x01B\v\n" +
-	"\t_modifier\"\xd4\x01\n" +
-	"\rDecayFunction\x12\x12\n" +
-	"\x04path\x18\x01 \x03(\tR\x04path\x12\x16\n" +
+	"\x06_depth\"\xf6\x01\n" +
+	"\x0eBoostCondition\x12.\n" +
+	"\x06filter\x18\x01 \x01(\v2\x14.weaviate.v1.FiltersH\x00R\x06filter\x122\n" +
+	"\x05decay\x18\x02 \x01(\v2\x1a.weaviate.v1.DecayFunctionH\x00R\x05decay\x12K\n" +
+	"\x0eproperty_value\x18\x04 \x01(\v2\".weaviate.v1.PropertyValueFunctionH\x00R\rpropertyValue\x12\x1b\n" +
+	"\x06weight\x18\x03 \x01(\x02H\x01R\x06weight\x88\x01\x01B\v\n" +
+	"\tconditionB\t\n" +
+	"\a_weight\"\x85\x01\n" +
+	"\x15PropertyValueFunction\x12\x1a\n" +
+	"\bproperty\x18\x01 \x01(\tR\bproperty\x12C\n" +
+	"\bmodifier\x18\x02 \x01(\x0e2\".weaviate.v1.PropertyValueModifierH\x00R\bmodifier\x88\x01\x01B\v\n" +
+	"\t_modifier\"\xf5\x01\n" +
+	"\rDecayFunction\x12\x1a\n" +
+	"\bproperty\x18\x01 \x01(\tR\bproperty\x12\x16\n" +
 	"\x06origin\x18\x02 \x01(\tR\x06origin\x12\x14\n" +
 	"\x05scale\x18\x03 \x01(\tR\x05scale\x12\x1b\n" +
-	"\x06offset\x18\x04 \x01(\tH\x00R\x06offset\x88\x01\x01\x12\x19\n" +
-	"\x05curve\x18\x05 \x01(\tH\x01R\x05curve\x88\x01\x01\x12$\n" +
+	"\x06offset\x18\x04 \x01(\tH\x00R\x06offset\x88\x01\x01\x122\n" +
+	"\x05curve\x18\x05 \x01(\x0e2\x17.weaviate.v1.DecayCurveH\x01R\x05curve\x88\x01\x01\x12$\n" +
 	"\vdecay_value\x18\x06 \x01(\x02H\x02R\n" +
 	"decayValue\x88\x01\x01B\t\n" +
 	"\a_offsetB\b\n" +
 	"\x06_curveB\x0e\n" +
-	"\f_decay_valueBs\n" +
+	"\f_decay_value*~\n" +
+	"\x15PropertyValueModifier\x12 \n" +
+	"\x1cPROPERTY_VALUE_MODIFIER_NONE\x10\x00\x12!\n" +
+	"\x1dPROPERTY_VALUE_MODIFIER_LOG1P\x10\x01\x12 \n" +
+	"\x1cPROPERTY_VALUE_MODIFIER_SQRT\x10\x02*X\n" +
+	"\n" +
+	"DecayCurve\x12\x1b\n" +
+	"\x17DECAY_CURVE_EXPONENTIAL\x10\x00\x12\x15\n" +
+	"\x11DECAY_CURVE_GAUSS\x10\x01\x12\x16\n" +
+	"\x12DECAY_CURVE_LINEAR\x10\x02Bs\n" +
 	"#io.weaviate.client.grpc.protocol.v1B\x16WeaviateProtoSearchGetZ4github.com/weaviate/weaviate/grpc/generated;protocolb\x06proto3"
 
 var (
@@ -2110,108 +2251,113 @@ func file_v1_search_get_proto_rawDescGZIP() []byte {
 }
 
 var (
-	file_v1_search_get_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
-	file_v1_search_get_proto_goTypes  = []any{
-		(*SearchRequest)(nil),              // 0: weaviate.v1.SearchRequest
-		(*GroupBy)(nil),                    // 1: weaviate.v1.GroupBy
-		(*SortBy)(nil),                     // 2: weaviate.v1.SortBy
-		(*MetadataRequest)(nil),            // 3: weaviate.v1.MetadataRequest
-		(*PropertiesRequest)(nil),          // 4: weaviate.v1.PropertiesRequest
-		(*ObjectPropertiesRequest)(nil),    // 5: weaviate.v1.ObjectPropertiesRequest
-		(*RefPropertiesRequest)(nil),       // 6: weaviate.v1.RefPropertiesRequest
-		(*Rerank)(nil),                     // 7: weaviate.v1.Rerank
-		(*SearchReply)(nil),                // 8: weaviate.v1.SearchReply
-		(*QueryProfile)(nil),               // 9: weaviate.v1.QueryProfile
-		(*RerankReply)(nil),                // 10: weaviate.v1.RerankReply
-		(*GroupByResult)(nil),              // 11: weaviate.v1.GroupByResult
-		(*SearchResult)(nil),               // 12: weaviate.v1.SearchResult
-		(*MetadataResult)(nil),             // 13: weaviate.v1.MetadataResult
-		(*PropertiesResult)(nil),           // 14: weaviate.v1.PropertiesResult
-		(*RefPropertiesResult)(nil),        // 15: weaviate.v1.RefPropertiesResult
-		(*Boost)(nil),                      // 16: weaviate.v1.Boost
-		(*BoostCondition)(nil),             // 17: weaviate.v1.BoostCondition
-		(*PropertyValueFunction)(nil),      // 18: weaviate.v1.PropertyValueFunction
-		(*DecayFunction)(nil),              // 19: weaviate.v1.DecayFunction
-		(*QueryProfile_SearchProfile)(nil), // 20: weaviate.v1.QueryProfile.SearchProfile
-		(*QueryProfile_ShardProfile)(nil),  // 21: weaviate.v1.QueryProfile.ShardProfile
-		nil,                                // 22: weaviate.v1.QueryProfile.SearchProfile.DetailsEntry
-		nil,                                // 23: weaviate.v1.QueryProfile.ShardProfile.SearchesEntry
-		(ConsistencyLevel)(0),              // 24: weaviate.v1.ConsistencyLevel
-		(*Filters)(nil),                    // 25: weaviate.v1.Filters
-		(*Hybrid)(nil),                     // 26: weaviate.v1.Hybrid
-		(*BM25)(nil),                       // 27: weaviate.v1.BM25
-		(*NearVector)(nil),                 // 28: weaviate.v1.NearVector
-		(*NearObject)(nil),                 // 29: weaviate.v1.NearObject
-		(*NearTextSearch)(nil),             // 30: weaviate.v1.NearTextSearch
-		(*NearImageSearch)(nil),            // 31: weaviate.v1.NearImageSearch
-		(*NearAudioSearch)(nil),            // 32: weaviate.v1.NearAudioSearch
-		(*NearVideoSearch)(nil),            // 33: weaviate.v1.NearVideoSearch
-		(*NearDepthSearch)(nil),            // 34: weaviate.v1.NearDepthSearch
-		(*NearThermalSearch)(nil),          // 35: weaviate.v1.NearThermalSearch
-		(*NearIMUSearch)(nil),              // 36: weaviate.v1.NearIMUSearch
-		(*GenerativeSearch)(nil),           // 37: weaviate.v1.GenerativeSearch
-		(*GenerativeResult)(nil),           // 38: weaviate.v1.GenerativeResult
-		(*GenerativeReply)(nil),            // 39: weaviate.v1.GenerativeReply
-		(*Vectors)(nil),                    // 40: weaviate.v1.Vectors
-		(*Properties)(nil),                 // 41: weaviate.v1.Properties
+	file_v1_search_get_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+	file_v1_search_get_proto_msgTypes  = make([]protoimpl.MessageInfo, 24)
+	file_v1_search_get_proto_goTypes   = []any{
+		(PropertyValueModifier)(0),         // 0: weaviate.v1.PropertyValueModifier
+		(DecayCurve)(0),                    // 1: weaviate.v1.DecayCurve
+		(*SearchRequest)(nil),              // 2: weaviate.v1.SearchRequest
+		(*GroupBy)(nil),                    // 3: weaviate.v1.GroupBy
+		(*SortBy)(nil),                     // 4: weaviate.v1.SortBy
+		(*MetadataRequest)(nil),            // 5: weaviate.v1.MetadataRequest
+		(*PropertiesRequest)(nil),          // 6: weaviate.v1.PropertiesRequest
+		(*ObjectPropertiesRequest)(nil),    // 7: weaviate.v1.ObjectPropertiesRequest
+		(*RefPropertiesRequest)(nil),       // 8: weaviate.v1.RefPropertiesRequest
+		(*Rerank)(nil),                     // 9: weaviate.v1.Rerank
+		(*SearchReply)(nil),                // 10: weaviate.v1.SearchReply
+		(*QueryProfile)(nil),               // 11: weaviate.v1.QueryProfile
+		(*RerankReply)(nil),                // 12: weaviate.v1.RerankReply
+		(*GroupByResult)(nil),              // 13: weaviate.v1.GroupByResult
+		(*SearchResult)(nil),               // 14: weaviate.v1.SearchResult
+		(*MetadataResult)(nil),             // 15: weaviate.v1.MetadataResult
+		(*PropertiesResult)(nil),           // 16: weaviate.v1.PropertiesResult
+		(*RefPropertiesResult)(nil),        // 17: weaviate.v1.RefPropertiesResult
+		(*Boost)(nil),                      // 18: weaviate.v1.Boost
+		(*BoostCondition)(nil),             // 19: weaviate.v1.BoostCondition
+		(*PropertyValueFunction)(nil),      // 20: weaviate.v1.PropertyValueFunction
+		(*DecayFunction)(nil),              // 21: weaviate.v1.DecayFunction
+		(*QueryProfile_SearchProfile)(nil), // 22: weaviate.v1.QueryProfile.SearchProfile
+		(*QueryProfile_ShardProfile)(nil),  // 23: weaviate.v1.QueryProfile.ShardProfile
+		nil,                                // 24: weaviate.v1.QueryProfile.SearchProfile.DetailsEntry
+		nil,                                // 25: weaviate.v1.QueryProfile.ShardProfile.SearchesEntry
+		(ConsistencyLevel)(0),              // 26: weaviate.v1.ConsistencyLevel
+		(*Filters)(nil),                    // 27: weaviate.v1.Filters
+		(*Hybrid)(nil),                     // 28: weaviate.v1.Hybrid
+		(*BM25)(nil),                       // 29: weaviate.v1.BM25
+		(*NearVector)(nil),                 // 30: weaviate.v1.NearVector
+		(*NearObject)(nil),                 // 31: weaviate.v1.NearObject
+		(*NearTextSearch)(nil),             // 32: weaviate.v1.NearTextSearch
+		(*NearImageSearch)(nil),            // 33: weaviate.v1.NearImageSearch
+		(*NearAudioSearch)(nil),            // 34: weaviate.v1.NearAudioSearch
+		(*NearVideoSearch)(nil),            // 35: weaviate.v1.NearVideoSearch
+		(*NearDepthSearch)(nil),            // 36: weaviate.v1.NearDepthSearch
+		(*NearThermalSearch)(nil),          // 37: weaviate.v1.NearThermalSearch
+		(*NearIMUSearch)(nil),              // 38: weaviate.v1.NearIMUSearch
+		(*GenerativeSearch)(nil),           // 39: weaviate.v1.GenerativeSearch
+		(*GenerativeResult)(nil),           // 40: weaviate.v1.GenerativeResult
+		(*GenerativeReply)(nil),            // 41: weaviate.v1.GenerativeReply
+		(*Vectors)(nil),                    // 42: weaviate.v1.Vectors
+		(*Properties)(nil),                 // 43: weaviate.v1.Properties
 	}
 )
 
 var file_v1_search_get_proto_depIdxs = []int32{
-	24, // 0: weaviate.v1.SearchRequest.consistency_level:type_name -> weaviate.v1.ConsistencyLevel
-	4,  // 1: weaviate.v1.SearchRequest.properties:type_name -> weaviate.v1.PropertiesRequest
-	3,  // 2: weaviate.v1.SearchRequest.metadata:type_name -> weaviate.v1.MetadataRequest
-	1,  // 3: weaviate.v1.SearchRequest.group_by:type_name -> weaviate.v1.GroupBy
-	2,  // 4: weaviate.v1.SearchRequest.sort_by:type_name -> weaviate.v1.SortBy
-	25, // 5: weaviate.v1.SearchRequest.filters:type_name -> weaviate.v1.Filters
-	26, // 6: weaviate.v1.SearchRequest.hybrid_search:type_name -> weaviate.v1.Hybrid
-	27, // 7: weaviate.v1.SearchRequest.bm25_search:type_name -> weaviate.v1.BM25
-	28, // 8: weaviate.v1.SearchRequest.near_vector:type_name -> weaviate.v1.NearVector
-	29, // 9: weaviate.v1.SearchRequest.near_object:type_name -> weaviate.v1.NearObject
-	30, // 10: weaviate.v1.SearchRequest.near_text:type_name -> weaviate.v1.NearTextSearch
-	31, // 11: weaviate.v1.SearchRequest.near_image:type_name -> weaviate.v1.NearImageSearch
-	32, // 12: weaviate.v1.SearchRequest.near_audio:type_name -> weaviate.v1.NearAudioSearch
-	33, // 13: weaviate.v1.SearchRequest.near_video:type_name -> weaviate.v1.NearVideoSearch
-	34, // 14: weaviate.v1.SearchRequest.near_depth:type_name -> weaviate.v1.NearDepthSearch
-	35, // 15: weaviate.v1.SearchRequest.near_thermal:type_name -> weaviate.v1.NearThermalSearch
-	36, // 16: weaviate.v1.SearchRequest.near_imu:type_name -> weaviate.v1.NearIMUSearch
-	37, // 17: weaviate.v1.SearchRequest.generative:type_name -> weaviate.v1.GenerativeSearch
-	7,  // 18: weaviate.v1.SearchRequest.rerank:type_name -> weaviate.v1.Rerank
-	16, // 19: weaviate.v1.SearchRequest.boost:type_name -> weaviate.v1.Boost
-	6,  // 20: weaviate.v1.PropertiesRequest.ref_properties:type_name -> weaviate.v1.RefPropertiesRequest
-	5,  // 21: weaviate.v1.PropertiesRequest.object_properties:type_name -> weaviate.v1.ObjectPropertiesRequest
-	5,  // 22: weaviate.v1.ObjectPropertiesRequest.object_properties:type_name -> weaviate.v1.ObjectPropertiesRequest
-	4,  // 23: weaviate.v1.RefPropertiesRequest.properties:type_name -> weaviate.v1.PropertiesRequest
-	3,  // 24: weaviate.v1.RefPropertiesRequest.metadata:type_name -> weaviate.v1.MetadataRequest
-	12, // 25: weaviate.v1.SearchReply.results:type_name -> weaviate.v1.SearchResult
-	11, // 26: weaviate.v1.SearchReply.group_by_results:type_name -> weaviate.v1.GroupByResult
-	38, // 27: weaviate.v1.SearchReply.generative_grouped_results:type_name -> weaviate.v1.GenerativeResult
-	9,  // 28: weaviate.v1.SearchReply.query_profile:type_name -> weaviate.v1.QueryProfile
-	21, // 29: weaviate.v1.QueryProfile.shards:type_name -> weaviate.v1.QueryProfile.ShardProfile
-	12, // 30: weaviate.v1.GroupByResult.objects:type_name -> weaviate.v1.SearchResult
-	10, // 31: weaviate.v1.GroupByResult.rerank:type_name -> weaviate.v1.RerankReply
-	39, // 32: weaviate.v1.GroupByResult.generative:type_name -> weaviate.v1.GenerativeReply
-	38, // 33: weaviate.v1.GroupByResult.generative_result:type_name -> weaviate.v1.GenerativeResult
-	14, // 34: weaviate.v1.SearchResult.properties:type_name -> weaviate.v1.PropertiesResult
-	13, // 35: weaviate.v1.SearchResult.metadata:type_name -> weaviate.v1.MetadataResult
-	38, // 36: weaviate.v1.SearchResult.generative:type_name -> weaviate.v1.GenerativeResult
-	40, // 37: weaviate.v1.MetadataResult.vectors:type_name -> weaviate.v1.Vectors
-	15, // 38: weaviate.v1.PropertiesResult.ref_props:type_name -> weaviate.v1.RefPropertiesResult
-	13, // 39: weaviate.v1.PropertiesResult.metadata:type_name -> weaviate.v1.MetadataResult
-	41, // 40: weaviate.v1.PropertiesResult.non_ref_props:type_name -> weaviate.v1.Properties
-	14, // 41: weaviate.v1.RefPropertiesResult.properties:type_name -> weaviate.v1.PropertiesResult
-	17, // 42: weaviate.v1.Boost.conditions:type_name -> weaviate.v1.BoostCondition
-	25, // 43: weaviate.v1.BoostCondition.filter:type_name -> weaviate.v1.Filters
-	19, // 44: weaviate.v1.BoostCondition.decay:type_name -> weaviate.v1.DecayFunction
-	18, // 45: weaviate.v1.BoostCondition.property_value:type_name -> weaviate.v1.PropertyValueFunction
-	22, // 46: weaviate.v1.QueryProfile.SearchProfile.details:type_name -> weaviate.v1.QueryProfile.SearchProfile.DetailsEntry
-	23, // 47: weaviate.v1.QueryProfile.ShardProfile.searches:type_name -> weaviate.v1.QueryProfile.ShardProfile.SearchesEntry
-	20, // 48: weaviate.v1.QueryProfile.ShardProfile.SearchesEntry.value:type_name -> weaviate.v1.QueryProfile.SearchProfile
-	49, // [49:49] is the sub-list for method output_type
-	49, // [49:49] is the sub-list for method input_type
-	49, // [49:49] is the sub-list for extension type_name
-	49, // [49:49] is the sub-list for extension extendee
-	0,  // [0:49] is the sub-list for field type_name
+	26, // 0: weaviate.v1.SearchRequest.consistency_level:type_name -> weaviate.v1.ConsistencyLevel
+	6,  // 1: weaviate.v1.SearchRequest.properties:type_name -> weaviate.v1.PropertiesRequest
+	5,  // 2: weaviate.v1.SearchRequest.metadata:type_name -> weaviate.v1.MetadataRequest
+	3,  // 3: weaviate.v1.SearchRequest.group_by:type_name -> weaviate.v1.GroupBy
+	4,  // 4: weaviate.v1.SearchRequest.sort_by:type_name -> weaviate.v1.SortBy
+	27, // 5: weaviate.v1.SearchRequest.filters:type_name -> weaviate.v1.Filters
+	28, // 6: weaviate.v1.SearchRequest.hybrid_search:type_name -> weaviate.v1.Hybrid
+	29, // 7: weaviate.v1.SearchRequest.bm25_search:type_name -> weaviate.v1.BM25
+	30, // 8: weaviate.v1.SearchRequest.near_vector:type_name -> weaviate.v1.NearVector
+	31, // 9: weaviate.v1.SearchRequest.near_object:type_name -> weaviate.v1.NearObject
+	32, // 10: weaviate.v1.SearchRequest.near_text:type_name -> weaviate.v1.NearTextSearch
+	33, // 11: weaviate.v1.SearchRequest.near_image:type_name -> weaviate.v1.NearImageSearch
+	34, // 12: weaviate.v1.SearchRequest.near_audio:type_name -> weaviate.v1.NearAudioSearch
+	35, // 13: weaviate.v1.SearchRequest.near_video:type_name -> weaviate.v1.NearVideoSearch
+	36, // 14: weaviate.v1.SearchRequest.near_depth:type_name -> weaviate.v1.NearDepthSearch
+	37, // 15: weaviate.v1.SearchRequest.near_thermal:type_name -> weaviate.v1.NearThermalSearch
+	38, // 16: weaviate.v1.SearchRequest.near_imu:type_name -> weaviate.v1.NearIMUSearch
+	39, // 17: weaviate.v1.SearchRequest.generative:type_name -> weaviate.v1.GenerativeSearch
+	9,  // 18: weaviate.v1.SearchRequest.rerank:type_name -> weaviate.v1.Rerank
+	18, // 19: weaviate.v1.SearchRequest.boost:type_name -> weaviate.v1.Boost
+	8,  // 20: weaviate.v1.PropertiesRequest.ref_properties:type_name -> weaviate.v1.RefPropertiesRequest
+	7,  // 21: weaviate.v1.PropertiesRequest.object_properties:type_name -> weaviate.v1.ObjectPropertiesRequest
+	7,  // 22: weaviate.v1.ObjectPropertiesRequest.object_properties:type_name -> weaviate.v1.ObjectPropertiesRequest
+	6,  // 23: weaviate.v1.RefPropertiesRequest.properties:type_name -> weaviate.v1.PropertiesRequest
+	5,  // 24: weaviate.v1.RefPropertiesRequest.metadata:type_name -> weaviate.v1.MetadataRequest
+	14, // 25: weaviate.v1.SearchReply.results:type_name -> weaviate.v1.SearchResult
+	13, // 26: weaviate.v1.SearchReply.group_by_results:type_name -> weaviate.v1.GroupByResult
+	40, // 27: weaviate.v1.SearchReply.generative_grouped_results:type_name -> weaviate.v1.GenerativeResult
+	11, // 28: weaviate.v1.SearchReply.query_profile:type_name -> weaviate.v1.QueryProfile
+	23, // 29: weaviate.v1.QueryProfile.shards:type_name -> weaviate.v1.QueryProfile.ShardProfile
+	14, // 30: weaviate.v1.GroupByResult.objects:type_name -> weaviate.v1.SearchResult
+	12, // 31: weaviate.v1.GroupByResult.rerank:type_name -> weaviate.v1.RerankReply
+	41, // 32: weaviate.v1.GroupByResult.generative:type_name -> weaviate.v1.GenerativeReply
+	40, // 33: weaviate.v1.GroupByResult.generative_result:type_name -> weaviate.v1.GenerativeResult
+	16, // 34: weaviate.v1.SearchResult.properties:type_name -> weaviate.v1.PropertiesResult
+	15, // 35: weaviate.v1.SearchResult.metadata:type_name -> weaviate.v1.MetadataResult
+	40, // 36: weaviate.v1.SearchResult.generative:type_name -> weaviate.v1.GenerativeResult
+	42, // 37: weaviate.v1.MetadataResult.vectors:type_name -> weaviate.v1.Vectors
+	17, // 38: weaviate.v1.PropertiesResult.ref_props:type_name -> weaviate.v1.RefPropertiesResult
+	15, // 39: weaviate.v1.PropertiesResult.metadata:type_name -> weaviate.v1.MetadataResult
+	43, // 40: weaviate.v1.PropertiesResult.non_ref_props:type_name -> weaviate.v1.Properties
+	16, // 41: weaviate.v1.RefPropertiesResult.properties:type_name -> weaviate.v1.PropertiesResult
+	19, // 42: weaviate.v1.Boost.conditions:type_name -> weaviate.v1.BoostCondition
+	27, // 43: weaviate.v1.BoostCondition.filter:type_name -> weaviate.v1.Filters
+	21, // 44: weaviate.v1.BoostCondition.decay:type_name -> weaviate.v1.DecayFunction
+	20, // 45: weaviate.v1.BoostCondition.property_value:type_name -> weaviate.v1.PropertyValueFunction
+	0,  // 46: weaviate.v1.PropertyValueFunction.modifier:type_name -> weaviate.v1.PropertyValueModifier
+	1,  // 47: weaviate.v1.DecayFunction.curve:type_name -> weaviate.v1.DecayCurve
+	24, // 48: weaviate.v1.QueryProfile.SearchProfile.details:type_name -> weaviate.v1.QueryProfile.SearchProfile.DetailsEntry
+	25, // 49: weaviate.v1.QueryProfile.ShardProfile.searches:type_name -> weaviate.v1.QueryProfile.ShardProfile.SearchesEntry
+	22, // 50: weaviate.v1.QueryProfile.ShardProfile.SearchesEntry.value:type_name -> weaviate.v1.QueryProfile.SearchProfile
+	51, // [51:51] is the sub-list for method output_type
+	51, // [51:51] is the sub-list for method input_type
+	51, // [51:51] is the sub-list for extension type_name
+	51, // [51:51] is the sub-list for extension extendee
+	0,  // [0:51] is the sub-list for field type_name
 }
 
 func init() { file_v1_search_get_proto_init() }
@@ -2230,7 +2376,11 @@ func file_v1_search_get_proto_init() {
 	file_v1_search_get_proto_msgTypes[12].OneofWrappers = []any{}
 	file_v1_search_get_proto_msgTypes[13].OneofWrappers = []any{}
 	file_v1_search_get_proto_msgTypes[16].OneofWrappers = []any{}
-	file_v1_search_get_proto_msgTypes[17].OneofWrappers = []any{}
+	file_v1_search_get_proto_msgTypes[17].OneofWrappers = []any{
+		(*BoostCondition_Filter)(nil),
+		(*BoostCondition_Decay)(nil),
+		(*BoostCondition_PropertyValue)(nil),
+	}
 	file_v1_search_get_proto_msgTypes[18].OneofWrappers = []any{}
 	file_v1_search_get_proto_msgTypes[19].OneofWrappers = []any{}
 	type x struct{}
@@ -2238,13 +2388,14 @@ func file_v1_search_get_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_v1_search_get_proto_rawDesc), len(file_v1_search_get_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      2,
 			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_v1_search_get_proto_goTypes,
 		DependencyIndexes: file_v1_search_get_proto_depIdxs,
+		EnumInfos:         file_v1_search_get_proto_enumTypes,
 		MessageInfos:      file_v1_search_get_proto_msgTypes,
 	}.Build()
 	File_v1_search_get_proto = out.File
