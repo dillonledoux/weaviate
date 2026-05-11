@@ -678,7 +678,7 @@ func (p *Parser) extractBoost(boost *pb.Boost, className, tenant string) (*filte
 	return result, nil
 }
 
-func (p *Parser) extractBoostCondition(cond *pb.BoostCondition, className, tenant string, idx int) (filters.BoostCondition, error) {
+func (p *Parser) extractBoostCondition(cond *pb.Boost_Condition, className, tenant string, idx int) (filters.BoostCondition, error) {
 	weight := float32(1.0)
 	if cond.Weight != nil {
 		weight = cond.GetWeight()
@@ -689,25 +689,25 @@ func (p *Parser) extractBoostCondition(cond *pb.BoostCondition, className, tenan
 	}
 
 	switch c := cond.GetCondition().(type) {
-	case *pb.BoostCondition_Filter:
+	case *pb.Boost_Condition_Filter:
 		clause, err := ExtractFilters(c.Filter, p.authorizedGetClass, className, tenant)
 		if err != nil {
 			return filters.BoostCondition{}, fmt.Errorf("boost condition[%d] filter: %w", idx, err)
 		}
 		pc.Filter = &filters.LocalFilter{Root: &clause}
-	case *pb.BoostCondition_TimeDecay:
+	case *pb.Boost_Condition_TimeDecay:
 		decay, err := extractTimeDecayFunction(c.TimeDecay, idx)
 		if err != nil {
 			return filters.BoostCondition{}, err
 		}
 		pc.Decay = decay
-	case *pb.BoostCondition_NumericDecay:
+	case *pb.Boost_Condition_NumericDecay:
 		decay, err := extractNumericDecayFunction(c.NumericDecay, idx)
 		if err != nil {
 			return filters.BoostCondition{}, err
 		}
 		pc.Decay = decay
-	case *pb.BoostCondition_PropertyValue:
+	case *pb.Boost_Condition_PropertyValue:
 		fv, err := extractPropertyValueFunction(c.PropertyValue, idx)
 		if err != nil {
 			return filters.BoostCondition{}, err
@@ -720,7 +720,7 @@ func (p *Parser) extractBoostCondition(cond *pb.BoostCondition, className, tenan
 	return pc, nil
 }
 
-func extractPropertyValueFunction(fv *pb.PropertyValueFunction, condIdx int) (*filters.PropertyValue, error) {
+func extractPropertyValueFunction(fv *pb.Boost_PropertyValueFunction, condIdx int) (*filters.PropertyValue, error) {
 	if fv == nil {
 		return nil, nil
 	}
@@ -732,11 +732,11 @@ func extractPropertyValueFunction(fv *pb.PropertyValueFunction, condIdx int) (*f
 
 	modifier := filters.PropertyValueModifierNone
 	switch fv.GetModifier() {
-	case pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_LOG1P:
+	case pb.Boost_PROPERTY_VALUE_MODIFIER_LOG1P:
 		modifier = filters.PropertyValueModifierLog1p
-	case pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_SQRT:
+	case pb.Boost_PROPERTY_VALUE_MODIFIER_SQRT:
 		modifier = filters.PropertyValueModifierSqrt
-	case pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_UNSPECIFIED:
+	case pb.Boost_PROPERTY_VALUE_MODIFIER_UNSPECIFIED:
 		modifier = filters.PropertyValueModifierNone
 	}
 
@@ -746,18 +746,18 @@ func extractPropertyValueFunction(fv *pb.PropertyValueFunction, condIdx int) (*f
 	}, nil
 }
 
-func extractDecayCurve(curve pb.DecayCurve) filters.DecayCurveType {
+func extractDecayCurve(curve pb.Boost_DecayCurve) filters.DecayCurveType {
 	switch curve {
-	case pb.DecayCurve_DECAY_CURVE_GAUSS:
+	case pb.Boost_DECAY_CURVE_GAUSS:
 		return filters.DecayCurveGauss
-	case pb.DecayCurve_DECAY_CURVE_LINEAR:
+	case pb.Boost_DECAY_CURVE_LINEAR:
 		return filters.DecayCurveLinear
 	default:
 		return filters.DecayCurveExp
 	}
 }
 
-func extractTimeDecayFunction(d *pb.TimeDecayFunction, condIdx int) (*filters.Decay, error) {
+func extractTimeDecayFunction(d *pb.Boost_TimeDecayFunction, condIdx int) (*filters.Decay, error) {
 	if d == nil {
 		return nil, nil
 	}
@@ -787,7 +787,7 @@ func extractTimeDecayFunction(d *pb.TimeDecayFunction, condIdx int) (*filters.De
 	}, nil
 }
 
-func extractNumericDecayFunction(d *pb.NumericDecayFunction, condIdx int) (*filters.Decay, error) {
+func extractNumericDecayFunction(d *pb.Boost_NumericDecayFunction, condIdx int) (*filters.Decay, error) {
 	if d == nil {
 		return nil, nil
 	}

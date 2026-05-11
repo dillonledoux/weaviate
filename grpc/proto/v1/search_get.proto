@@ -216,53 +216,53 @@ message RefPropertiesResult {
 }
 
 message Boost {
-  repeated BoostCondition conditions = 1;
+  repeated Condition conditions = 1;
   optional float weight = 2;
   optional uint32 depth = 3;
-}
 
-message BoostCondition {
-  oneof condition {
-    Filters filter = 1;
-    TimeDecayFunction time_decay = 2;
-    PropertyValueFunction property_value = 4;
-    NumericDecayFunction numeric_decay = 5;
+  message Condition {
+    oneof condition {
+      Filters filter = 1;
+      TimeDecayFunction time_decay = 2;
+      PropertyValueFunction property_value = 4;
+      NumericDecayFunction numeric_decay = 5;
+    }
+    optional float weight = 3;
   }
-  optional float weight = 3;
-}
 
-enum PropertyValueModifier {
-  PROPERTY_VALUE_MODIFIER_UNSPECIFIED = 0;
-  PROPERTY_VALUE_MODIFIER_LOG1P = 1;
-  PROPERTY_VALUE_MODIFIER_SQRT = 2;
-}
+  enum PropertyValueModifier {
+    PROPERTY_VALUE_MODIFIER_UNSPECIFIED = 0;
+    PROPERTY_VALUE_MODIFIER_LOG1P = 1;
+    PROPERTY_VALUE_MODIFIER_SQRT = 2;
+  }
 
-enum DecayCurve {
-  DECAY_CURVE_UNSPECIFIED = 0;
-  DECAY_CURVE_GAUSS = 1;
-  DECAY_CURVE_LINEAR = 2;
-  DECAY_CURVE_EXPONENTIAL = 3;
-}
+  enum DecayCurve {
+    DECAY_CURVE_UNSPECIFIED = 0;
+    DECAY_CURVE_GAUSS = 1;
+    DECAY_CURVE_LINEAR = 2;
+    DECAY_CURVE_EXPONENTIAL = 3;
+  }
 
-message PropertyValueFunction {
-  string property = 1;
-  optional PropertyValueModifier modifier = 2;
-}
+  message PropertyValueFunction {
+    string property = 1;
+    optional PropertyValueModifier modifier = 2;
+  }
 
-message TimeDecayFunction {
-  string property = 1;
-  string origin = 2;    // "now" or ISO datetime; defaults to "now"
-  string scale = 3;     // duration string e.g. "30d", "7h"
-  optional string offset = 4;
-  optional DecayCurve curve = 5;
-  optional float decay_value = 6;
-}
+  message TimeDecayFunction {
+    string property = 1;
+    string origin = 2;
+    string scale = 3;
+    optional string offset = 4;
+    optional DecayCurve curve = 5;
+    optional float decay_value = 6;
+  }
 
-message NumericDecayFunction {
-  string property = 1;
-  double origin = 2;
-  double scale = 3;
-  optional double offset = 4;
-  optional DecayCurve curve = 5;
-  optional float decay_value = 6;
+  message NumericDecayFunction {
+    string property = 1;
+    double origin = 2;
+    double scale = 3;
+    optional double offset = 4;
+    optional DecayCurve curve = 5;
+    optional float decay_value = 6;
+  }
 }
