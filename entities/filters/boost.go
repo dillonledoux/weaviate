@@ -22,6 +22,12 @@ type Boost struct {
 	Conditions []BoostCondition
 	Weight     float32 // blending weight [0,1]: final = (1-w)*primary + w*boost, default 0.5
 	Depth      int     // candidate pool size for reranking; 0 means use default (100)
+
+	// OriginalOffset and OriginalLimit are set internally by the explorer
+	// when overfetching for boost. They record the user's requested pagination
+	// so it can be applied after boost re-sorts.
+	OriginalOffset int
+	OriginalLimit  int
 }
 
 // BoostCondition represents a single boost condition. Exactly one of

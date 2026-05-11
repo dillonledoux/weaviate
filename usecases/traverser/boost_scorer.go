@@ -34,7 +34,7 @@ import (
 	"github.com/weaviate/weaviate/entities/search"
 )
 
-func applyBoostScoring(results []search.Result, boost *filters.Boost, limit int) []search.Result {
+func applyBoostScoring(results []search.Result, boost *filters.Boost) []search.Result {
 	if boost == nil || len(boost.Conditions) == 0 || len(results) == 0 {
 		return results
 	}
@@ -111,7 +111,15 @@ func applyBoostScoring(results []search.Result, boost *filters.Boost, limit int)
 		return results[i].ID < results[j].ID
 	})
 
-	// Truncate to limit.
+	// Apply offset, then truncate to limit.
+	offset := boost.OriginalOffset
+	limit := boost.OriginalLimit
+	if offset > 0 {
+		if offset >= len(results) {
+			return nil
+		}
+		results = results[offset:]
+	}
 	if limit > 0 && len(results) > limit {
 		results = results[:limit]
 	}

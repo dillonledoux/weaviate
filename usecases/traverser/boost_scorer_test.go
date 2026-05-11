@@ -63,17 +63,31 @@ func decayCondition(path, origin, scale, curve string, decayValue float32) filte
 	}
 }
 
+// withOriginalLimit returns a shallow copy of the boost with OriginalOffset and OriginalLimit set.
+func withOriginalLimit(b *filters.Boost, limit int) *filters.Boost {
+	cp := *b
+	cp.OriginalLimit = limit
+	return &cp
+}
+
+func withOriginalPagination(b *filters.Boost, offset, limit int) *filters.Boost {
+	cp := *b
+	cp.OriginalOffset = offset
+	cp.OriginalLimit = limit
+	return &cp
+}
+
 // --- applyBoostScoring tests ---
 
 func TestApplyBoostScoring_NilRank(t *testing.T) {
 	results := []search.Result{makeResult("a", 1.0, nil)}
-	got := applyBoostScoring(results, nil, 10)
+	got := applyBoostScoring(results, nil)
 	assert.Equal(t, results, got)
 }
 
 func TestApplyBoostScoring_EmptyConditions(t *testing.T) {
 	results := []search.Result{makeResult("a", 1.0, nil)}
-	got := applyBoostScoring(results, &filters.Boost{Conditions: nil, Weight: 0.5}, 10)
+	got := applyBoostScoring(results, &filters.Boost{Conditions: nil, Weight: 0.5, OriginalLimit: 10})
 	assert.Equal(t, results, got)
 }
 
@@ -88,7 +102,7 @@ func TestApplyBoostScoring_WeightZero(t *testing.T) {
 		},
 		Weight: 0,
 	}
-	got := applyBoostScoring(results, boost, 10)
+	got := applyBoostScoring(results, withOriginalLimit(boost, 10))
 	// weight=0 → no change, original order preserved
 	assert.Equal(t, strfmt.UUID("a"), got[0].ID)
 	assert.Equal(t, strfmt.UUID("b"), got[1].ID)
@@ -105,7 +119,7 @@ func TestApplyBoostScoring_FilterPromotesMatchingResults(t *testing.T) {
 		},
 		Weight: 1.0,
 	}
-	got := applyBoostScoring(results, boost, 10)
+	got := applyBoostScoring(results, withOriginalLimit(boost, 10))
 	// With weight=1.0, only boost score matters. in-stock should be first.
 	assert.Equal(t, strfmt.UUID("in-stock"), got[0].ID)
 	assert.Equal(t, strfmt.UUID("no-stock"), got[1].ID)
@@ -123,7 +137,7 @@ func TestApplyBoostScoring_Truncation(t *testing.T) {
 		},
 		Weight: 0.5,
 	}
-	got := applyBoostScoring(results, boost, 2)
+	got := applyBoostScoring(results, withOriginalLimit(boost, 2))
 	assert.Len(t, got, 2)
 }
 
@@ -145,7 +159,7 @@ func TestApplyBoostScoring_DepthPromotesDeepResult(t *testing.T) {
 		},
 		Weight: 1.0,
 	}
-	got := applyBoostScoring(results, boost, 3)
+	got := applyBoostScoring(results, withOriginalLimit(boost, 3))
 	require.Len(t, got, 3)
 	// item-9 (promoted=true, boost=1.0) should be first despite worst primary score.
 	assert.Equal(t, strfmt.UUID("item-9"), got[0].ID)
@@ -168,7 +182,7 @@ func TestApplyBoostScoring_SmallDepthMissesDeepResult(t *testing.T) {
 		},
 		Weight: 1.0,
 	}
-	got := applyBoostScoring(results, boost, 3)
+	got := applyBoostScoring(results, withOriginalLimit(boost, 3))
 	require.Len(t, got, 3)
 	// No promoted items in the candidate pool, so order is unchanged.
 	assert.Equal(t, strfmt.UUID("item-0"), got[0].ID)
@@ -191,7 +205,7 @@ func TestApplyBoostScoring_DepthTruncatesToOriginalLimit(t *testing.T) {
 		},
 		Weight: 0.8,
 	}
-	got := applyBoostScoring(results, boost, 5)
+	got := applyBoostScoring(results, withOriginalLimit(boost, 5))
 	require.Len(t, got, 5)
 	// With weight=0.8, inStock items should dominate the top-5.
 	inStockCount := 0
@@ -217,7 +231,7 @@ func TestApplyBoostScoring_AllSamePrimaryScore(t *testing.T) {
 		},
 		Weight: 0.5,
 	}
-	got := applyBoostScoring(results, boost, 10)
+	got := applyBoostScoring(results, withOriginalLimit(boost, 10))
 	// match has boost=1.0, no-match has boost=0.0
 	// final(match) = 0.5*1.0 + 0.5*1.0 = 1.0
 	// final(no-match) = 0.5*1.0 + 0.5*0.0 = 0.5
@@ -251,7 +265,7 @@ func TestApplyBoostScoring_WithDistConvertedScores(t *testing.T) {
 		},
 		Weight: 0.5,
 	}
-	got := applyBoostScoring(results, boost, 10)
+	got := applyBoostScoring(results, withOriginalLimit(boost, 10))
 	// "medium": decent distance (normalized ~0.9) + streaming (1.0) → best combined
 	// "close": best distance (normalized 1.0) but no streaming (0.0) → 0.5
 	// "far": worst distance (normalized 0.0) but streaming (1.0) → 0.5
@@ -265,7 +279,7 @@ func TestApplyBoostScoring_EmptyResults(t *testing.T) {
 		},
 		Weight: 0.5,
 	}
-	got := applyBoostScoring(nil, boost, 10)
+	got := applyBoostScoring(nil, withOriginalLimit(boost, 10))
 	assert.Nil(t, got)
 }
 
@@ -788,7 +802,7 @@ func TestApplyBoostScoring_DecayReorders(t *testing.T) {
 		},
 		Weight: 1.0,
 	}
-	got := applyBoostScoring(results, boost, 10)
+	got := applyBoostScoring(results, withOriginalLimit(boost, 10))
 	// close (dist=10) should rank first, far (dist=900) last
 	assert.Equal(t, strfmt.UUID("close"), got[0].ID)
 	assert.Equal(t, strfmt.UUID("far"), got[1].ID)
@@ -814,7 +828,7 @@ func TestApplyBoostScoring_MixedConditions(t *testing.T) {
 		},
 		Weight: 1.0,
 	}
-	got := applyBoostScoring(results, boost, 10)
+	got := applyBoostScoring(results, withOriginalLimit(boost, 10))
 	// c: inStock=true(w=2,s=1) + price=100(w=1,s=1.0) → (2*1+1*1)/3 = 1.0
 	// a: inStock=true(w=2,s=1) + price=500(w=1,s=0.5) → (2*1+1*0.5)/3 = 0.833
 	// b: inStock=false(w=2,s=0) + price=100(w=1,s=1.0) → (2*0+1*1.0)/3 = 0.333
@@ -888,7 +902,7 @@ func TestApplyBoostScoring_NegativeWeightDemotesMatchingResult(t *testing.T) {
 		},
 		Weight: 0.5,
 	}
-	got := applyBoostScoring(results, boost, 10)
+	got := applyBoostScoring(results, withOriginalLimit(boost, 10))
 	// no-match has boost=0 (doesn't match, so condScore=0, score=0)
 	// match has boost=-1 (matches negative weight)
 	// After blending with weight=0.5: no-match ranks higher
@@ -1008,7 +1022,7 @@ func TestApplyBoostScoring_PropertyValuePromotesHighValues(t *testing.T) {
 		Conditions: []filters.BoostCondition{propertyValueCondition("likes", "none")},
 		Weight:     1.0,
 	}
-	got := applyBoostScoring(results, boost, 10)
+	got := applyBoostScoring(results, withOriginalLimit(boost, 10))
 	// With weight=1.0, only boost score matters. high-likes (normalized to 1.0) should be first.
 	assert.Equal(t, strfmt.UUID("high-likes"), got[0].ID)
 	assert.Equal(t, strfmt.UUID("low-likes"), got[1].ID)
@@ -1024,7 +1038,7 @@ func TestApplyBoostScoring_PropertyValueLog1p(t *testing.T) {
 		Conditions: []filters.BoostCondition{propertyValueCondition("likes", "log1p")},
 		Weight:     1.0,
 	}
-	got := applyBoostScoring(results, boost, 10)
+	got := applyBoostScoring(results, withOriginalLimit(boost, 10))
 	// log1p compresses the range: log1p(10000) >> log1p(100) > log1p(0)
 	assert.Equal(t, strfmt.UUID("c"), got[0].ID)
 	assert.Equal(t, strfmt.UUID("b"), got[1].ID)
@@ -1042,7 +1056,7 @@ func TestApplyBoostScoring_PropertyValueSqrt(t *testing.T) {
 		Conditions: []filters.BoostCondition{propertyValueCondition("likes", "sqrt")},
 		Weight:     1.0,
 	}
-	got := applyBoostScoring(results, boost, 10)
+	got := applyBoostScoring(results, withOriginalLimit(boost, 10))
 	assert.Equal(t, strfmt.UUID("b"), got[0].ID)
 	assert.Equal(t, strfmt.UUID("a"), got[1].ID)
 }
@@ -1056,7 +1070,7 @@ func TestApplyBoostScoring_PropertyValueAllSameValue(t *testing.T) {
 		Conditions: []filters.BoostCondition{propertyValueCondition("likes", "none")},
 		Weight:     0.5,
 	}
-	got := applyBoostScoring(results, boost, 10)
+	got := applyBoostScoring(results, withOriginalLimit(boost, 10))
 	// All same property value → all normalize to 1.0
 	// Primary score breaks the tie: a (1.0) > b (0.5)
 	assert.Equal(t, strfmt.UUID("a"), got[0].ID)
@@ -1071,7 +1085,7 @@ func TestApplyBoostScoring_PropertyValueMissingProperty(t *testing.T) {
 		Conditions: []filters.BoostCondition{propertyValueCondition("likes", "none")},
 		Weight:     1.0,
 	}
-	got := applyBoostScoring(results, boost, 10)
+	got := applyBoostScoring(results, withOriginalLimit(boost, 10))
 	// Missing property → raw value 0. has-likes should rank first.
 	assert.Equal(t, strfmt.UUID("has-likes"), got[0].ID)
 }
@@ -1156,7 +1170,7 @@ func TestApplyBoostScoring_PropertyValueNonExistingField(t *testing.T) {
 		}},
 		Weight: 1.0,
 	}
-	got := applyBoostScoring(results, boost, 10)
+	got := applyBoostScoring(results, withOriginalLimit(boost, 10))
 	// All property values are 0 → all normalize to 1.0 (same value).
 	// Primary scores break the tie: a (1.0) > b (0.5) after normalization.
 	require.Len(t, got, 2)
@@ -1178,9 +1192,102 @@ func TestApplyBoostScoring_PropertyValueNilSchema(t *testing.T) {
 		}},
 		Weight: 1.0,
 	}
-	got := applyBoostScoring(results, boost, 10)
+	got := applyBoostScoring(results, withOriginalLimit(boost, 10))
 	// a has nil schema → likes=0, b has likes=100.
 	// With weight=1.0, only boost matters. b should rank first.
 	require.Len(t, got, 2)
 	assert.Equal(t, strfmt.UUID("b"), got[0].ID)
+}
+
+// --- Offset pagination tests ---
+
+func TestApplyBoostScoring_OffsetSkipsTopResults(t *testing.T) {
+	results := make([]search.Result, 10)
+	for i := range results {
+		results[i] = makeResult(
+			fmt.Sprintf("item-%d", i),
+			float32(10-i)*0.1,
+			map[string]interface{}{"promoted": i == 9},
+		)
+	}
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{
+			filterCondition("promoted", filters.OperatorEqual, true, schema.DataTypeBoolean),
+		},
+		Weight: 1.0,
+	}
+	// offset=0, limit=3: should get [item-9, item-0, item-1]
+	page1 := applyBoostScoring(cloneResults(results), withOriginalPagination(boost, 0, 3))
+	require.Len(t, page1, 3)
+	assert.Equal(t, strfmt.UUID("item-9"), page1[0].ID)
+
+	// offset=3, limit=3: should skip the first 3 and return the next 3
+	page2 := applyBoostScoring(cloneResults(results), withOriginalPagination(boost, 3, 3))
+	require.Len(t, page2, 3)
+
+	// Pages should not overlap
+	page1IDs := make(map[strfmt.UUID]bool)
+	for _, r := range page1 {
+		page1IDs[r.ID] = true
+	}
+	for _, r := range page2 {
+		assert.False(t, page1IDs[r.ID], "page2 result %s should not appear in page1", r.ID)
+	}
+}
+
+func TestApplyBoostScoring_OffsetPlusLimitMatchesFullResults(t *testing.T) {
+	results := make([]search.Result, 10)
+	for i := range results {
+		results[i] = makeResult(
+			fmt.Sprintf("item-%d", i),
+			float32(10-i)*0.1,
+			map[string]interface{}{"likes": float64(i * 100)},
+		)
+	}
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{{
+			PropertyValue: &filters.PropertyValue{
+				Path:     &filters.Path{Property: "likes"},
+				Modifier: "none",
+			},
+			Weight: 1.0,
+		}},
+		Weight: 0.7,
+	}
+	// Get all 10 results in one go
+	all := applyBoostScoring(cloneResults(results), withOriginalPagination(boost, 0, 10))
+	require.Len(t, all, 10)
+
+	// Get page 1 (offset=0, limit=5) and page 2 (offset=5, limit=5)
+	p1 := applyBoostScoring(cloneResults(results), withOriginalPagination(boost, 0, 5))
+	p2 := applyBoostScoring(cloneResults(results), withOriginalPagination(boost, 5, 5))
+	require.Len(t, p1, 5)
+	require.Len(t, p2, 5)
+
+	// Concatenation of pages should match full result
+	combined := append(p1, p2...)
+	for i := range all {
+		assert.Equal(t, all[i].ID, combined[i].ID, "position %d mismatch", i)
+	}
+}
+
+func TestApplyBoostScoring_OffsetBeyondResults(t *testing.T) {
+	results := []search.Result{
+		makeResult("a", 1.0, map[string]interface{}{"x": true}),
+		makeResult("b", 0.5, map[string]interface{}{"x": false}),
+	}
+	boost := &filters.Boost{
+		Conditions: []filters.BoostCondition{
+			filterCondition("x", filters.OperatorEqual, true, schema.DataTypeBoolean),
+		},
+		Weight: 0.5,
+	}
+	got := applyBoostScoring(results, withOriginalPagination(boost, 10, 5))
+	assert.Nil(t, got, "offset beyond result count should return nil")
+}
+
+func cloneResults(results []search.Result) []search.Result {
+	out := make([]search.Result, len(results))
+	copy(out, results)
+	return out
 }

@@ -1064,4 +1064,243 @@ func TestBoost(t *testing.T) {
 		assert.Equal(t, noBoostIDs, zeroWeightIDs,
 			"hybrid + boost with weight=0 should produce same ordering as no boost")
 	})
+
+	// ── Pagination (offset) + boost ───────────────────────────────
+
+	likesBoost := &pb.Boost{
+		Weight: float32Ptr(0.8),
+		Conditions: []*pb.BoostCondition{{
+			Condition: &pb.BoostCondition_PropertyValue{PropertyValue: &pb.PropertyValueFunction{
+				Property: "likes",
+				Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_NONE.Enum(),
+			}},
+			Weight: float32Ptr(1.0),
+		}},
+	}
+
+	// Get all 20 results in one page as the reference ordering.
+	t.Run("pagination: page-through consistency nearVector", func(t *testing.T) {
+		allResp, err := grpcClient.Search(ctx, &pb.SearchRequest{
+			Collection:  className,
+			Limit:       20,
+			Offset:      0,
+			Metadata:    &pb.MetadataRequest{Uuid: true, Score: true},
+			NearVector:  baseNearVector(),
+			Boost:       likesBoost,
+			Uses_127Api: true,
+		})
+		require.NoError(t, err)
+		require.Len(t, allResp.Results, 20)
+		allIDs := resultIDs(allResp.Results)
+
+		// Page 1: offset=0, limit=10
+		p1Resp, err := grpcClient.Search(ctx, &pb.SearchRequest{
+			Collection:  className,
+			Limit:       10,
+			Offset:      0,
+			Metadata:    &pb.MetadataRequest{Uuid: true, Score: true},
+			NearVector:  baseNearVector(),
+			Boost:       likesBoost,
+			Uses_127Api: true,
+		})
+		require.NoError(t, err)
+		require.Len(t, p1Resp.Results, 10)
+
+		// Page 2: offset=10, limit=10
+		p2Resp, err := grpcClient.Search(ctx, &pb.SearchRequest{
+			Collection:  className,
+			Limit:       10,
+			Offset:      10,
+			Metadata:    &pb.MetadataRequest{Uuid: true, Score: true},
+			NearVector:  baseNearVector(),
+			Boost:       likesBoost,
+			Uses_127Api: true,
+		})
+		require.NoError(t, err)
+		require.Len(t, p2Resp.Results, 10)
+
+		p1IDs := resultIDs(p1Resp.Results)
+		p2IDs := resultIDs(p2Resp.Results)
+
+		// Page 1 + Page 2 should match the full 20 result IDs.
+		combined := append(p1IDs, p2IDs...)
+		assert.Equal(t, allIDs, combined,
+			"page 1 + page 2 should equal the full result set")
+
+		// No overlap between pages.
+		p1Set := make(map[string]bool)
+		for _, id := range p1IDs {
+			p1Set[id] = true
+		}
+		for _, id := range p2IDs {
+			assert.False(t, p1Set[id], "page 2 result %s should not appear in page 1", id)
+		}
+	})
+
+	t.Run("pagination: page-through consistency hybrid", func(t *testing.T) {
+		hybridBoost := &pb.Boost{
+			Weight: float32Ptr(0.7),
+			Conditions: []*pb.BoostCondition{{
+				Condition: &pb.BoostCondition_Filter{Filter: &pb.Filters{
+					Operator:  pb.Filters_OPERATOR_GREATER_THAN,
+					TestValue: &pb.Filters_ValueNumber{ValueNumber: 500},
+					Target:    &pb.FilterTarget{Target: &pb.FilterTarget_Property{Property: "likes"}},
+				}},
+				Weight: float32Ptr(1.0),
+			}},
+		}
+
+		allResp, err := grpcClient.Search(ctx, &pb.SearchRequest{
+			Collection: className,
+			Limit:      20,
+			Offset:     0,
+			Metadata:   &pb.MetadataRequest{Uuid: true, Score: true},
+			HybridSearch: &pb.Hybrid{
+				Query:      "Song",
+				Properties: []string{"name"},
+				NearVector: baseNearVector(),
+			},
+			Boost:       hybridBoost,
+			Uses_127Api: true,
+		})
+		require.NoError(t, err)
+		require.Len(t, allResp.Results, 20)
+		allIDs := resultIDs(allResp.Results)
+
+		p1Resp, err := grpcClient.Search(ctx, &pb.SearchRequest{
+			Collection: className,
+			Limit:      10,
+			Offset:     0,
+			Metadata:   &pb.MetadataRequest{Uuid: true, Score: true},
+			HybridSearch: &pb.Hybrid{
+				Query:      "Song",
+				Properties: []string{"name"},
+				NearVector: baseNearVector(),
+			},
+			Boost:       hybridBoost,
+			Uses_127Api: true,
+		})
+		require.NoError(t, err)
+		require.Len(t, p1Resp.Results, 10)
+
+		p2Resp, err := grpcClient.Search(ctx, &pb.SearchRequest{
+			Collection: className,
+			Limit:      10,
+			Offset:     10,
+			Metadata:   &pb.MetadataRequest{Uuid: true, Score: true},
+			HybridSearch: &pb.Hybrid{
+				Query:      "Song",
+				Properties: []string{"name"},
+				NearVector: baseNearVector(),
+			},
+			Boost:       hybridBoost,
+			Uses_127Api: true,
+		})
+		require.NoError(t, err)
+		require.Len(t, p2Resp.Results, 10)
+
+		p1IDs := resultIDs(p1Resp.Results)
+		p2IDs := resultIDs(p2Resp.Results)
+
+		combined := append(p1IDs, p2IDs...)
+		assert.Equal(t, allIDs, combined,
+			"hybrid: page 1 + page 2 should equal the full result set")
+	})
+
+	t.Run("pagination: offset with BM25 + boost", func(t *testing.T) {
+		bm25Boost := &pb.Boost{
+			Weight: float32Ptr(0.8),
+			Conditions: []*pb.BoostCondition{{
+				Condition: &pb.BoostCondition_PropertyValue{PropertyValue: &pb.PropertyValueFunction{
+					Property: "likes",
+					Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_NONE.Enum(),
+				}},
+				Weight: float32Ptr(1.0),
+			}},
+		}
+
+		allResp, err := grpcClient.Search(ctx, &pb.SearchRequest{
+			Collection: className,
+			Limit:      20,
+			Offset:     0,
+			Metadata:   &pb.MetadataRequest{Uuid: true, Score: true},
+			Bm25Search: &pb.BM25{
+				Query:      "Song",
+				Properties: []string{"name"},
+			},
+			Boost:       bm25Boost,
+			Uses_127Api: true,
+		})
+		require.NoError(t, err)
+		require.Len(t, allResp.Results, 20)
+		allIDs := resultIDs(allResp.Results)
+
+		p1Resp, err := grpcClient.Search(ctx, &pb.SearchRequest{
+			Collection: className,
+			Limit:      10,
+			Offset:     0,
+			Metadata:   &pb.MetadataRequest{Uuid: true, Score: true},
+			Bm25Search: &pb.BM25{
+				Query:      "Song",
+				Properties: []string{"name"},
+			},
+			Boost:       bm25Boost,
+			Uses_127Api: true,
+		})
+		require.NoError(t, err)
+		require.Len(t, p1Resp.Results, 10)
+
+		p2Resp, err := grpcClient.Search(ctx, &pb.SearchRequest{
+			Collection: className,
+			Limit:      10,
+			Offset:     10,
+			Metadata:   &pb.MetadataRequest{Uuid: true, Score: true},
+			Bm25Search: &pb.BM25{
+				Query:      "Song",
+				Properties: []string{"name"},
+			},
+			Boost:       bm25Boost,
+			Uses_127Api: true,
+		})
+		require.NoError(t, err)
+		require.Len(t, p2Resp.Results, 10)
+
+		p1IDs := resultIDs(p1Resp.Results)
+		p2IDs := resultIDs(p2Resp.Results)
+
+		combined := append(p1IDs, p2IDs...)
+		assert.Equal(t, allIDs, combined,
+			"BM25: page 1 + page 2 should equal the full result set")
+	})
+
+	t.Run("pagination: boost reorders across offset boundary", func(t *testing.T) {
+		// Without boost, nearVector returns by distance. With a strong boost
+		// on likes, the ordering changes. Verify that offset into the boosted
+		// ordering returns different results than offset into the unboosted ordering.
+		unboostedP2, err := grpcClient.Search(ctx, &pb.SearchRequest{
+			Collection:  className,
+			Limit:       5,
+			Offset:      5,
+			Metadata:    &pb.MetadataRequest{Uuid: true},
+			NearVector:  baseNearVector(),
+			Uses_127Api: true,
+		})
+		require.NoError(t, err)
+
+		boostedP2, err := grpcClient.Search(ctx, &pb.SearchRequest{
+			Collection:  className,
+			Limit:       5,
+			Offset:      5,
+			Metadata:    &pb.MetadataRequest{Uuid: true},
+			NearVector:  baseNearVector(),
+			Boost:       likesBoost,
+			Uses_127Api: true,
+		})
+		require.NoError(t, err)
+
+		unboostedIDs := resultIDs(unboostedP2.Results)
+		boostedIDs := resultIDs(boostedP2.Results)
+		assert.NotEqual(t, unboostedIDs, boostedIDs,
+			"offset=5 with boost should differ from offset=5 without boost")
+	})
 }
