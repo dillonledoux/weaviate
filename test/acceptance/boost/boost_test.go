@@ -388,7 +388,7 @@ func TestBoost(t *testing.T) {
 			Boost: &pb.Boost{
 				Weight: float32Ptr(0.8),
 				Conditions: []*pb.BoostCondition{{
-					Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+					Condition: &pb.BoostCondition_TimeDecay{TimeDecay: &pb.TimeDecayFunction{
 						Property: "date_published",
 						Origin:   "2025-01-01T00:00:00Z",
 						Scale:    "30d",
@@ -412,7 +412,7 @@ func TestBoost(t *testing.T) {
 			Boost: &pb.Boost{
 				Weight: float32Ptr(0.8),
 				Conditions: []*pb.BoostCondition{{
-					Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+					Condition: &pb.BoostCondition_TimeDecay{TimeDecay: &pb.TimeDecayFunction{
 						Property: "date_published",
 						Origin:   "2025-01-01T00:00:00Z",
 						Scale:    "30d",
@@ -436,7 +436,7 @@ func TestBoost(t *testing.T) {
 			Boost: &pb.Boost{
 				Weight: float32Ptr(0.8),
 				Conditions: []*pb.BoostCondition{{
-					Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+					Condition: &pb.BoostCondition_TimeDecay{TimeDecay: &pb.TimeDecayFunction{
 						Property: "date_published",
 						Origin:   "2025-01-01T00:00:00Z",
 						Scale:    "30d",
@@ -461,7 +461,7 @@ func TestBoost(t *testing.T) {
 			Boost: &pb.Boost{
 				Weight: float32Ptr(0.8),
 				Conditions: []*pb.BoostCondition{{
-					Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+					Condition: &pb.BoostCondition_TimeDecay{TimeDecay: &pb.TimeDecayFunction{
 						Property: "date_published",
 						Scale:    "60d",
 						Curve:    pb.DecayCurve_DECAY_CURVE_EXPONENTIAL.Enum(),
@@ -486,7 +486,7 @@ func TestBoost(t *testing.T) {
 				Boost: &pb.Boost{
 					Weight: float32Ptr(0.5),
 					Conditions: []*pb.BoostCondition{{
-						Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+						Condition: &pb.BoostCondition_TimeDecay{TimeDecay: &pb.TimeDecayFunction{
 							Property: "date_published",
 							Origin:   "2025-01-01T00:00:00Z",
 							Scale:    scale,
@@ -519,7 +519,7 @@ func TestBoost(t *testing.T) {
 				Boost: &pb.Boost{
 					Weight: float32Ptr(0.5),
 					Conditions: []*pb.BoostCondition{{
-						Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+						Condition: &pb.BoostCondition_TimeDecay{TimeDecay: &pb.TimeDecayFunction{
 							Property:   "date_published",
 							Origin:     "2025-01-01T00:00:00Z",
 							Scale:      "30d",
@@ -553,7 +553,7 @@ func TestBoost(t *testing.T) {
 				Boost: &pb.Boost{
 					Weight: float32Ptr(0.5),
 					Conditions: []*pb.BoostCondition{{
-						Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+						Condition: &pb.BoostCondition_TimeDecay{TimeDecay: &pb.TimeDecayFunction{
 							Property: "date_published",
 							Origin:   "2025-01-01T00:00:00Z",
 							Scale:    "30d",
@@ -595,7 +595,7 @@ func TestBoost(t *testing.T) {
 						Weight: float32Ptr(3.0),
 					},
 					{
-						Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+						Condition: &pb.BoostCondition_TimeDecay{TimeDecay: &pb.TimeDecayFunction{
 							Property: "date_published",
 							Origin:   "2025-01-01T00:00:00Z",
 							Scale:    "30d",
@@ -628,7 +628,7 @@ func TestBoost(t *testing.T) {
 						Weight: float32Ptr(2.0),
 					},
 					{
-						Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+						Condition: &pb.BoostCondition_TimeDecay{TimeDecay: &pb.TimeDecayFunction{
 							Property: "date_published",
 							Origin:   "2025-01-01T00:00:00Z",
 							Scale:    "14d",
@@ -669,7 +669,7 @@ func TestBoost(t *testing.T) {
 						Weight: float32Ptr(2.0),
 					},
 					{
-						Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+						Condition: &pb.BoostCondition_TimeDecay{TimeDecay: &pb.TimeDecayFunction{
 							Property: "date_published",
 							Origin:   "2025-01-01T00:00:00Z",
 							Scale:    "60d",
@@ -704,7 +704,7 @@ func TestBoost(t *testing.T) {
 							Weight: float32Ptr(1.0),
 						},
 						{
-							Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+							Condition: &pb.BoostCondition_TimeDecay{TimeDecay: &pb.TimeDecayFunction{
 								Property: "date_published",
 								Origin:   "2025-01-01T00:00:00Z",
 								Scale:    "30d",
@@ -845,7 +845,7 @@ func TestBoost(t *testing.T) {
 					},
 					{
 						// Demote old items.
-						Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+						Condition: &pb.BoostCondition_TimeDecay{TimeDecay: &pb.TimeDecayFunction{
 							Property: "date_published",
 							Origin:   "2025-01-01T00:00:00Z",
 							Scale:    "30d",
@@ -968,7 +968,7 @@ func TestBoost(t *testing.T) {
 			Boost: &pb.Boost{
 				Weight: float32Ptr(0.6),
 				Conditions: []*pb.BoostCondition{{
-					Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+					Condition: &pb.BoostCondition_TimeDecay{TimeDecay: &pb.TimeDecayFunction{
 						Property: "date_published",
 						Origin:   "2025-01-01T00:00:00Z",
 						Scale:    "30d",
@@ -1005,7 +1005,7 @@ func TestBoost(t *testing.T) {
 						Weight: float32Ptr(2.0),
 					},
 					{
-						Condition: &pb.BoostCondition_Decay{Decay: &pb.DecayFunction{
+						Condition: &pb.BoostCondition_TimeDecay{TimeDecay: &pb.TimeDecayFunction{
 							Property: "date_published",
 							Origin:   "2025-01-01T00:00:00Z",
 							Scale:    "60d",

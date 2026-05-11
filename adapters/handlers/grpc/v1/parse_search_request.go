@@ -14,6 +14,7 @@ package v1
 import (
 	"fmt"
 	"slices"
+	"strconv"
 
 	"github.com/weaviate/weaviate/entities/modelsext"
 	"github.com/weaviate/weaviate/entities/schema/configvalidation"
@@ -694,8 +695,14 @@ func (p *Parser) extractBoostCondition(cond *pb.BoostCondition, className, tenan
 			return filters.BoostCondition{}, fmt.Errorf("boost condition[%d] filter: %w", idx, err)
 		}
 		pc.Filter = &filters.LocalFilter{Root: &clause}
-	case *pb.BoostCondition_Decay:
-		decay, err := extractDecayFunction(c.Decay, idx)
+	case *pb.BoostCondition_TimeDecay:
+		decay, err := extractTimeDecayFunction(c.TimeDecay, idx)
+		if err != nil {
+			return filters.BoostCondition{}, err
+		}
+		pc.Decay = decay
+	case *pb.BoostCondition_NumericDecay:
+		decay, err := extractNumericDecayFunction(c.NumericDecay, idx)
 		if err != nil {
 			return filters.BoostCondition{}, err
 		}
@@ -739,24 +746,25 @@ func extractPropertyValueFunction(fv *pb.PropertyValueFunction, condIdx int) (*f
 	}, nil
 }
 
-func extractDecayFunction(d *pb.DecayFunction, condIdx int) (*filters.Decay, error) {
+func extractDecayCurve(curve pb.DecayCurve) filters.DecayCurveType {
+	switch curve {
+	case pb.DecayCurve_DECAY_CURVE_GAUSS:
+		return filters.DecayCurveGauss
+	case pb.DecayCurve_DECAY_CURVE_LINEAR:
+		return filters.DecayCurveLinear
+	default:
+		return filters.DecayCurveExp
+	}
+}
+
+func extractTimeDecayFunction(d *pb.TimeDecayFunction, condIdx int) (*filters.Decay, error) {
 	if d == nil {
 		return nil, nil
 	}
 
 	prop := d.GetProperty()
 	if prop == "" {
-		return nil, fmt.Errorf("boost condition[%d] decay: property is required", condIdx)
-	}
-
-	curve := filters.DecayCurveExp
-	switch d.GetCurve() {
-	case pb.DecayCurve_DECAY_CURVE_GAUSS:
-		curve = filters.DecayCurveGauss
-	case pb.DecayCurve_DECAY_CURVE_LINEAR:
-		curve = filters.DecayCurveLinear
-	case pb.DecayCurve_DECAY_CURVE_EXPONENTIAL, pb.DecayCurve_DECAY_CURVE_UNSPECIFIED:
-		curve = filters.DecayCurveExp
+		return nil, fmt.Errorf("boost condition[%d] time_decay: property is required", condIdx)
 	}
 
 	decayValue := float32(0.5)
@@ -774,7 +782,41 @@ func extractDecayFunction(d *pb.DecayFunction, condIdx int) (*filters.Decay, err
 		Origin:     d.GetOrigin(),
 		Scale:      d.GetScale(),
 		Offset:     offset,
-		Curve:      curve,
+		Curve:      extractDecayCurve(d.GetCurve()),
+		DecayValue: decayValue,
+	}, nil
+}
+
+func extractNumericDecayFunction(d *pb.NumericDecayFunction, condIdx int) (*filters.Decay, error) {
+	if d == nil {
+		return nil, nil
+	}
+
+	prop := d.GetProperty()
+	if prop == "" {
+		return nil, fmt.Errorf("boost condition[%d] numeric_decay: property is required", condIdx)
+	}
+
+	if d.GetScale() <= 0 {
+		return nil, fmt.Errorf("boost condition[%d] numeric_decay: scale must be > 0", condIdx)
+	}
+
+	decayValue := float32(0.5)
+	if d.DecayValue != nil {
+		decayValue = d.GetDecayValue()
+	}
+
+	offset := "0"
+	if d.Offset != nil {
+		offset = strconv.FormatFloat(d.GetOffset(), 'f', -1, 64)
+	}
+
+	return &filters.Decay{
+		Path:       &filters.Path{Property: schema.PropertyName(prop)},
+		Origin:     strconv.FormatFloat(d.GetOrigin(), 'f', -1, 64),
+		Scale:      strconv.FormatFloat(d.GetScale(), 'f', -1, 64),
+		Offset:     offset,
+		Curve:      extractDecayCurve(d.GetCurve()),
 		DecayValue: decayValue,
 	}, nil
 }

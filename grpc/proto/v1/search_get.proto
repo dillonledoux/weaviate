@@ -224,8 +224,9 @@ message Boost {
 message BoostCondition {
   oneof condition {
     Filters filter = 1;
-    DecayFunction decay = 2;
+    TimeDecayFunction time_decay = 2;
     PropertyValueFunction property_value = 4;
+    NumericDecayFunction numeric_decay = 5;
   }
   optional float weight = 3;
 }
@@ -248,11 +249,20 @@ message PropertyValueFunction {
   optional PropertyValueModifier modifier = 2;
 }
 
-message DecayFunction {
+message TimeDecayFunction {
   string property = 1;
-  string origin = 2;
-  string scale = 3;
+  string origin = 2;    // "now" or ISO datetime; defaults to "now"
+  string scale = 3;     // duration string e.g. "30d", "7h"
   optional string offset = 4;
+  optional DecayCurve curve = 5;
+  optional float decay_value = 6;
+}
+
+message NumericDecayFunction {
+  string property = 1;
+  double origin = 2;
+  double scale = 3;
+  optional double offset = 4;
   optional DecayCurve curve = 5;
   optional float decay_value = 6;
 }
