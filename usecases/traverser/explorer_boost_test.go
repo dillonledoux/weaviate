@@ -115,7 +115,7 @@ func likesBoost(weight float32, depth int) *filters.Boost {
 		Conditions: []filters.BoostCondition{{
 			PropertyValue: &filters.PropertyValue{
 				Path:     &filters.Path{Property: "likes"},
-				Modifier: "none",
+				Modifier: filters.PropertyValueModifierNone,
 			},
 			Weight: 1.0,
 		}},

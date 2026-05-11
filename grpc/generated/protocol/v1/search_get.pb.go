@@ -21,22 +21,22 @@ const (
 type PropertyValueModifier int32
 
 const (
-	PropertyValueModifier_PROPERTY_VALUE_MODIFIER_NONE  PropertyValueModifier = 0
-	PropertyValueModifier_PROPERTY_VALUE_MODIFIER_LOG1P PropertyValueModifier = 1
-	PropertyValueModifier_PROPERTY_VALUE_MODIFIER_SQRT  PropertyValueModifier = 2
+	PropertyValueModifier_PROPERTY_VALUE_MODIFIER_UNSPECIFIED PropertyValueModifier = 0
+	PropertyValueModifier_PROPERTY_VALUE_MODIFIER_LOG1P       PropertyValueModifier = 1
+	PropertyValueModifier_PROPERTY_VALUE_MODIFIER_SQRT        PropertyValueModifier = 2
 )
 
 // Enum value maps for PropertyValueModifier.
 var (
 	PropertyValueModifier_name = map[int32]string{
-		0: "PROPERTY_VALUE_MODIFIER_NONE",
+		0: "PROPERTY_VALUE_MODIFIER_UNSPECIFIED",
 		1: "PROPERTY_VALUE_MODIFIER_LOG1P",
 		2: "PROPERTY_VALUE_MODIFIER_SQRT",
 	}
 	PropertyValueModifier_value = map[string]int32{
-		"PROPERTY_VALUE_MODIFIER_NONE":  0,
-		"PROPERTY_VALUE_MODIFIER_LOG1P": 1,
-		"PROPERTY_VALUE_MODIFIER_SQRT":  2,
+		"PROPERTY_VALUE_MODIFIER_UNSPECIFIED": 0,
+		"PROPERTY_VALUE_MODIFIER_LOG1P":       1,
+		"PROPERTY_VALUE_MODIFIER_SQRT":        2,
 	}
 )
 
@@ -70,22 +70,25 @@ func (PropertyValueModifier) EnumDescriptor() ([]byte, []int) {
 type DecayCurve int32
 
 const (
-	DecayCurve_DECAY_CURVE_EXPONENTIAL DecayCurve = 0
+	DecayCurve_DECAY_CURVE_UNSPECIFIED DecayCurve = 0
 	DecayCurve_DECAY_CURVE_GAUSS       DecayCurve = 1
 	DecayCurve_DECAY_CURVE_LINEAR      DecayCurve = 2
+	DecayCurve_DECAY_CURVE_EXPONENTIAL DecayCurve = 3
 )
 
 // Enum value maps for DecayCurve.
 var (
 	DecayCurve_name = map[int32]string{
-		0: "DECAY_CURVE_EXPONENTIAL",
+		0: "DECAY_CURVE_UNSPECIFIED",
 		1: "DECAY_CURVE_GAUSS",
 		2: "DECAY_CURVE_LINEAR",
+		3: "DECAY_CURVE_EXPONENTIAL",
 	}
 	DecayCurve_value = map[string]int32{
-		"DECAY_CURVE_EXPONENTIAL": 0,
+		"DECAY_CURVE_UNSPECIFIED": 0,
 		"DECAY_CURVE_GAUSS":       1,
 		"DECAY_CURVE_LINEAR":      2,
+		"DECAY_CURVE_EXPONENTIAL": 3,
 	}
 )
 
@@ -1796,7 +1799,7 @@ func (x *PropertyValueFunction) GetModifier() PropertyValueModifier {
 	if x != nil && x.Modifier != nil {
 		return *x.Modifier
 	}
-	return PropertyValueModifier_PROPERTY_VALUE_MODIFIER_NONE
+	return PropertyValueModifier_PROPERTY_VALUE_MODIFIER_UNSPECIFIED
 }
 
 type DecayFunction struct {
@@ -1873,7 +1876,7 @@ func (x *DecayFunction) GetCurve() DecayCurve {
 	if x != nil && x.Curve != nil {
 		return *x.Curve
 	}
-	return DecayCurve_DECAY_CURVE_EXPONENTIAL
+	return DecayCurve_DECAY_CURVE_UNSPECIFIED
 }
 
 func (x *DecayFunction) GetDecayValue() float32 {
@@ -2226,16 +2229,17 @@ const file_v1_search_get_proto_rawDesc = "" +
 	"decayValue\x88\x01\x01B\t\n" +
 	"\a_offsetB\b\n" +
 	"\x06_curveB\x0e\n" +
-	"\f_decay_value*~\n" +
-	"\x15PropertyValueModifier\x12 \n" +
-	"\x1cPROPERTY_VALUE_MODIFIER_NONE\x10\x00\x12!\n" +
+	"\f_decay_value*\x85\x01\n" +
+	"\x15PropertyValueModifier\x12'\n" +
+	"#PROPERTY_VALUE_MODIFIER_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dPROPERTY_VALUE_MODIFIER_LOG1P\x10\x01\x12 \n" +
-	"\x1cPROPERTY_VALUE_MODIFIER_SQRT\x10\x02*X\n" +
+	"\x1cPROPERTY_VALUE_MODIFIER_SQRT\x10\x02*u\n" +
 	"\n" +
 	"DecayCurve\x12\x1b\n" +
-	"\x17DECAY_CURVE_EXPONENTIAL\x10\x00\x12\x15\n" +
+	"\x17DECAY_CURVE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11DECAY_CURVE_GAUSS\x10\x01\x12\x16\n" +
-	"\x12DECAY_CURVE_LINEAR\x10\x02Bs\n" +
+	"\x12DECAY_CURVE_LINEAR\x10\x02\x12\x1b\n" +
+	"\x17DECAY_CURVE_EXPONENTIAL\x10\x03Bs\n" +
 	"#io.weaviate.client.grpc.protocol.v1B\x16WeaviateProtoSearchGetZ4github.com/weaviate/weaviate/grpc/generated;protocolb\x06proto3"
 
 var (

@@ -288,7 +288,7 @@ func TestBoost(t *testing.T) {
 				Conditions: []*pb.BoostCondition{{
 					Condition: &pb.BoostCondition_PropertyValue{PropertyValue: &pb.PropertyValueFunction{
 						Property: "likes",
-						Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_NONE.Enum(),
+						Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_UNSPECIFIED.Enum(),
 					}},
 					Weight: float32Ptr(1.0),
 				}},
@@ -366,7 +366,7 @@ func TestBoost(t *testing.T) {
 				Uses_127Api: true,
 			}
 		}
-		noneResp, err := grpcClient.Search(ctx, makeReq(pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_NONE))
+		noneResp, err := grpcClient.Search(ctx, makeReq(pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_UNSPECIFIED))
 		require.NoError(t, err)
 		log1pResp, err := grpcClient.Search(ctx, makeReq(pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_LOG1P))
 		require.NoError(t, err)
@@ -699,7 +699,7 @@ func TestBoost(t *testing.T) {
 						{
 							Condition: &pb.BoostCondition_PropertyValue{PropertyValue: &pb.PropertyValueFunction{
 								Property: "likes",
-								Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_NONE.Enum(),
+								Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_UNSPECIFIED.Enum(),
 							}},
 							Weight: float32Ptr(1.0),
 						},
@@ -839,7 +839,7 @@ func TestBoost(t *testing.T) {
 						// Promote high likes.
 						Condition: &pb.BoostCondition_PropertyValue{PropertyValue: &pb.PropertyValueFunction{
 							Property: "likes",
-							Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_NONE.Enum(),
+							Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_UNSPECIFIED.Enum(),
 						}},
 						Weight: float32Ptr(2.0),
 					},
@@ -1072,7 +1072,7 @@ func TestBoost(t *testing.T) {
 		Conditions: []*pb.BoostCondition{{
 			Condition: &pb.BoostCondition_PropertyValue{PropertyValue: &pb.PropertyValueFunction{
 				Property: "likes",
-				Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_NONE.Enum(),
+				Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_UNSPECIFIED.Enum(),
 			}},
 			Weight: float32Ptr(1.0),
 		}},
@@ -1213,7 +1213,7 @@ func TestBoost(t *testing.T) {
 			Conditions: []*pb.BoostCondition{{
 				Condition: &pb.BoostCondition_PropertyValue{PropertyValue: &pb.PropertyValueFunction{
 					Property: "likes",
-					Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_NONE.Enum(),
+					Modifier: pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_UNSPECIFIED.Enum(),
 				}},
 				Weight: float32Ptr(1.0),
 			}},

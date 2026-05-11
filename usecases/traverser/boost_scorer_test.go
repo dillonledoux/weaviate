@@ -50,7 +50,7 @@ func filterCondition(path string, op filters.Operator, val interface{}, dt schem
 	}
 }
 
-func decayCondition(path, origin, scale, curve string, decayValue float32) filters.BoostCondition {
+func decayCondition(path, origin, scale string, curve filters.DecayCurveType, decayValue float32) filters.BoostCondition {
 	return filters.BoostCondition{
 		Decay: &filters.Decay{
 			Path:       &filters.Path{Property: schema.PropertyName(path)},
@@ -499,56 +499,56 @@ func TestCompareValues_Like(t *testing.T) {
 
 func TestComputeDecayFunction_Exp(t *testing.T) {
 	// decay=0.5, dist=scale → score=0.5
-	score := computeDecayFunction("exp", 100, 0, 100, 0.5)
+	score := computeDecayFunction(filters.DecayCurveExp, 100, 0, 100, 0.5)
 	assert.InDelta(t, 0.5, float64(score), 0.001)
 
 	// dist=0 → score=1.0
-	score = computeDecayFunction("exp", 0, 0, 100, 0.5)
+	score = computeDecayFunction(filters.DecayCurveExp, 0, 0, 100, 0.5)
 	assert.InDelta(t, 1.0, float64(score), 0.001)
 
 	// dist=2*scale → score=0.25
-	score = computeDecayFunction("exp", 200, 0, 100, 0.5)
+	score = computeDecayFunction(filters.DecayCurveExp, 200, 0, 100, 0.5)
 	assert.InDelta(t, 0.25, float64(score), 0.001)
 }
 
 func TestComputeDecayFunction_Gauss(t *testing.T) {
 	// dist=scale → score=decayValue
-	score := computeDecayFunction("gauss", 100, 0, 100, 0.5)
+	score := computeDecayFunction(filters.DecayCurveGauss, 100, 0, 100, 0.5)
 	assert.InDelta(t, 0.5, float64(score), 0.001)
 
 	// dist=0 → 1.0
-	score = computeDecayFunction("gauss", 0, 0, 100, 0.5)
+	score = computeDecayFunction(filters.DecayCurveGauss, 0, 0, 100, 0.5)
 	assert.InDelta(t, 1.0, float64(score), 0.001)
 }
 
 func TestComputeDecayFunction_Linear(t *testing.T) {
 	// dist=scale → decayValue
-	score := computeDecayFunction("linear", 100, 0, 100, 0.5)
+	score := computeDecayFunction(filters.DecayCurveLinear, 100, 0, 100, 0.5)
 	assert.InDelta(t, 0.5, float64(score), 0.001)
 
 	// dist=0 → 1.0
-	score = computeDecayFunction("linear", 0, 0, 100, 0.5)
+	score = computeDecayFunction(filters.DecayCurveLinear, 0, 0, 100, 0.5)
 	assert.InDelta(t, 1.0, float64(score), 0.001)
 
 	// dist > scale/(1-decay) → 0
-	score = computeDecayFunction("linear", 300, 0, 100, 0.5)
+	score = computeDecayFunction(filters.DecayCurveLinear, 300, 0, 100, 0.5)
 	assert.InDelta(t, 0.0, float64(score), 0.001)
 }
 
 func TestComputeDecayFunction_WithOffset(t *testing.T) {
 	// dist within offset → score=1.0
-	score := computeDecayFunction("exp", 50, 50, 100, 0.5)
+	score := computeDecayFunction(filters.DecayCurveExp, 50, 50, 100, 0.5)
 	assert.InDelta(t, 1.0, float64(score), 0.001)
 
 	// dist=offset+scale → decayValue
-	score = computeDecayFunction("exp", 150, 50, 100, 0.5)
+	score = computeDecayFunction(filters.DecayCurveExp, 150, 50, 100, 0.5)
 	assert.InDelta(t, 0.5, float64(score), 0.001)
 }
 
 func TestComputeDecayFunction_DefaultCurve(t *testing.T) {
 	// Unknown curve falls back to exp behavior
 	score := computeDecayFunction("unknown", 100, 0, 100, 0.5)
-	scoreExp := computeDecayFunction("exp", 100, 0, 100, 0.5)
+	scoreExp := computeDecayFunction(filters.DecayCurveExp, 100, 0, 100, 0.5)
 	assert.InDelta(t, float64(scoreExp), float64(score), 0.001)
 }
 
@@ -559,7 +559,7 @@ func TestComputeDecayForResult_NumericProperty(t *testing.T) {
 		Path:       &filters.Path{Property: "price"},
 		Origin:     "100",
 		Scale:      "200",
-		Curve:      "exp",
+		Curve:      filters.DecayCurveExp,
 		DecayValue: 0.5,
 	}
 	parsed := parseDecayParams(decay)
@@ -588,7 +588,7 @@ func TestComputeDecayForResult_DateProperty(t *testing.T) {
 		Path:       &filters.Path{Property: "createdAt"},
 		Origin:     origin,
 		Scale:      scale,
-		Curve:      "exp",
+		Curve:      filters.DecayCurveExp,
 		DecayValue: 0.5,
 	}
 	parsed := parseDecayParams(decay)
@@ -637,7 +637,7 @@ func TestParseDecayParams_Valid(t *testing.T) {
 		Origin:     "100",
 		Scale:      "200",
 		Offset:     "10",
-		Curve:      "gauss",
+		Curve:      filters.DecayCurveGauss,
 		DecayValue: 0.3,
 	}
 	p := parseDecayParams(d)
@@ -645,7 +645,7 @@ func TestParseDecayParams_Valid(t *testing.T) {
 	assert.InDelta(t, 10, p.offset, 0.001)
 	assert.InDelta(t, 200, p.scale, 0.001)
 	assert.InDelta(t, 0.3, p.decayValue, 0.001)
-	assert.Equal(t, "gauss", p.curve)
+	assert.Equal(t, filters.DecayCurveGauss, p.curve)
 }
 
 func TestParseDecayParams_Defaults(t *testing.T) {
@@ -654,8 +654,8 @@ func TestParseDecayParams_Defaults(t *testing.T) {
 	}
 	p := parseDecayParams(d)
 	assert.True(t, p.valid)
-	assert.InDelta(t, 0.5, p.decayValue, 0.001) // default
-	assert.Equal(t, "exp", p.curve)             // default
+	assert.InDelta(t, 0.5, p.decayValue, 0.001)     // default
+	assert.Equal(t, filters.DecayCurveExp, p.curve) // default
 }
 
 func TestParseDecayParams_InvalidScale(t *testing.T) {
@@ -798,7 +798,7 @@ func TestApplyBoostScoring_DecayReorders(t *testing.T) {
 	}
 	boost := &filters.Boost{
 		Conditions: []filters.BoostCondition{
-			decayCondition("price", "100", "200", "exp", 0.5),
+			decayCondition("price", "100", "200", filters.DecayCurveExp, 0.5),
 		},
 		Weight: 1.0,
 	}
@@ -824,7 +824,7 @@ func TestApplyBoostScoring_MixedConditions(t *testing.T) {
 				}},
 				Weight: 2.0,
 			},
-			decayCondition("price", "100", "500", "linear", 0.5),
+			decayCondition("price", "100", "500", filters.DecayCurveLinear, 0.5),
 		},
 		Weight: 1.0,
 	}
@@ -976,34 +976,34 @@ func TestComputeDistance_Date(t *testing.T) {
 // Ensure decay curves score correctly at extreme distances.
 func TestComputeDecayFunction_ExtremeDistances(t *testing.T) {
 	// Very large distance → exp approaches 0
-	score := computeDecayFunction("exp", 1e9, 0, 100, 0.5)
+	score := computeDecayFunction(filters.DecayCurveExp, 1e9, 0, 100, 0.5)
 	assert.True(t, float64(score) < 1e-10, "exp at huge distance should be near 0")
 
 	// Gauss at huge distance → 0
-	score = computeDecayFunction("gauss", 1e6, 0, 100, 0.5)
+	score = computeDecayFunction(filters.DecayCurveGauss, 1e6, 0, 100, 0.5)
 	assert.InDelta(t, 0, float64(score), 1e-10)
 
 	// Linear caps at 0
-	score = computeDecayFunction("linear", 1e6, 0, 100, 0.5)
+	score = computeDecayFunction(filters.DecayCurveLinear, 1e6, 0, 100, 0.5)
 	assert.InDelta(t, 0, float64(score), 1e-10)
 }
 
 // Verify that NaN/Inf don't leak through decay calculations.
 func TestComputeDecayFunction_NoNaN(t *testing.T) {
-	score := computeDecayFunction("exp", 0, 0, 100, 0.5)
+	score := computeDecayFunction(filters.DecayCurveExp, 0, 0, 100, 0.5)
 	assert.False(t, math.IsNaN(float64(score)))
 	assert.False(t, math.IsInf(float64(score), 0))
 
-	score = computeDecayFunction("gauss", 0, 0, 100, 0.5)
+	score = computeDecayFunction(filters.DecayCurveGauss, 0, 0, 100, 0.5)
 	assert.False(t, math.IsNaN(float64(score)))
 
-	score = computeDecayFunction("linear", 0, 0, 100, 0.5)
+	score = computeDecayFunction(filters.DecayCurveLinear, 0, 0, 100, 0.5)
 	assert.False(t, math.IsNaN(float64(score)))
 }
 
 // --- PropertyValue tests ---
 
-func propertyValueCondition(path, modifier string) filters.BoostCondition {
+func propertyValueCondition(path string, modifier filters.PropertyValueModifierType) filters.BoostCondition {
 	return filters.BoostCondition{
 		PropertyValue: &filters.PropertyValue{
 			Path:     &filters.Path{Property: schema.PropertyName(path)},
@@ -1019,7 +1019,7 @@ func TestApplyBoostScoring_PropertyValuePromotesHighValues(t *testing.T) {
 		makeResult("high-likes", 0.5, map[string]interface{}{"likes": float64(1000)}),
 	}
 	boost := &filters.Boost{
-		Conditions: []filters.BoostCondition{propertyValueCondition("likes", "none")},
+		Conditions: []filters.BoostCondition{propertyValueCondition("likes", filters.PropertyValueModifierNone)},
 		Weight:     1.0,
 	}
 	got := applyBoostScoring(results, withOriginalLimit(boost, 10))
@@ -1035,7 +1035,7 @@ func TestApplyBoostScoring_PropertyValueLog1p(t *testing.T) {
 		makeResult("c", 0.5, map[string]interface{}{"likes": float64(10000)}),
 	}
 	boost := &filters.Boost{
-		Conditions: []filters.BoostCondition{propertyValueCondition("likes", "log1p")},
+		Conditions: []filters.BoostCondition{propertyValueCondition("likes", filters.PropertyValueModifierLog1p)},
 		Weight:     1.0,
 	}
 	got := applyBoostScoring(results, withOriginalLimit(boost, 10))
@@ -1053,7 +1053,7 @@ func TestApplyBoostScoring_PropertyValueSqrt(t *testing.T) {
 		makeResult("b", 0.5, map[string]interface{}{"likes": float64(100)}),
 	}
 	boost := &filters.Boost{
-		Conditions: []filters.BoostCondition{propertyValueCondition("likes", "sqrt")},
+		Conditions: []filters.BoostCondition{propertyValueCondition("likes", filters.PropertyValueModifierSqrt)},
 		Weight:     1.0,
 	}
 	got := applyBoostScoring(results, withOriginalLimit(boost, 10))
@@ -1067,7 +1067,7 @@ func TestApplyBoostScoring_PropertyValueAllSameValue(t *testing.T) {
 		makeResult("b", 0.5, map[string]interface{}{"likes": float64(50)}),
 	}
 	boost := &filters.Boost{
-		Conditions: []filters.BoostCondition{propertyValueCondition("likes", "none")},
+		Conditions: []filters.BoostCondition{propertyValueCondition("likes", filters.PropertyValueModifierNone)},
 		Weight:     0.5,
 	}
 	got := applyBoostScoring(results, withOriginalLimit(boost, 10))
@@ -1082,7 +1082,7 @@ func TestApplyBoostScoring_PropertyValueMissingProperty(t *testing.T) {
 		makeResult("no-likes", 0.5, map[string]interface{}{"title": "hello"}),
 	}
 	boost := &filters.Boost{
-		Conditions: []filters.BoostCondition{propertyValueCondition("likes", "none")},
+		Conditions: []filters.BoostCondition{propertyValueCondition("likes", filters.PropertyValueModifierNone)},
 		Weight:     1.0,
 	}
 	got := applyBoostScoring(results, withOriginalLimit(boost, 10))
@@ -1094,16 +1094,16 @@ func TestApplyPropertyValueModifier(t *testing.T) {
 	tests := []struct {
 		name     string
 		val      float64
-		modifier string
+		modifier filters.PropertyValueModifierType
 		expected float64
 	}{
-		{"none passes through", 100, "none", 100},
-		{"log1p of 0", 0, "log1p", 0},
-		{"log1p of 100", 100, "log1p", math.Log1p(100)},
-		{"log1p of negative clamps to 0", -5, "log1p", 0},
-		{"sqrt of 100", 100, "sqrt", 10},
-		{"sqrt of 0", 0, "sqrt", 0},
-		{"sqrt of negative clamps to 0", -5, "sqrt", 0},
+		{"none passes through", 100, filters.PropertyValueModifierNone, 100},
+		{"log1p of 0", 0, filters.PropertyValueModifierLog1p, 0},
+		{"log1p of 100", 100, filters.PropertyValueModifierLog1p, math.Log1p(100)},
+		{"log1p of negative clamps to 0", -5, filters.PropertyValueModifierLog1p, 0},
+		{"sqrt of 100", 100, filters.PropertyValueModifierSqrt, 10},
+		{"sqrt of 0", 0, filters.PropertyValueModifierSqrt, 0},
+		{"sqrt of negative clamps to 0", -5, filters.PropertyValueModifierSqrt, 0},
 		{"empty modifier is none", 42, "", 42},
 	}
 	for _, tt := range tests {
@@ -1164,7 +1164,7 @@ func TestApplyBoostScoring_PropertyValueNonExistingField(t *testing.T) {
 		Conditions: []filters.BoostCondition{{
 			PropertyValue: &filters.PropertyValue{
 				Path:     &filters.Path{Property: "nonExistent"},
-				Modifier: "none",
+				Modifier: filters.PropertyValueModifierNone,
 			},
 			Weight: 1.0,
 		}},
@@ -1186,7 +1186,7 @@ func TestApplyBoostScoring_PropertyValueNilSchema(t *testing.T) {
 		Conditions: []filters.BoostCondition{{
 			PropertyValue: &filters.PropertyValue{
 				Path:     &filters.Path{Property: "likes"},
-				Modifier: "none",
+				Modifier: filters.PropertyValueModifierNone,
 			},
 			Weight: 1.0,
 		}},
@@ -1248,7 +1248,7 @@ func TestApplyBoostScoring_OffsetPlusLimitMatchesFullResults(t *testing.T) {
 		Conditions: []filters.BoostCondition{{
 			PropertyValue: &filters.PropertyValue{
 				Path:     &filters.Path{Property: "likes"},
-				Modifier: "none",
+				Modifier: filters.PropertyValueModifierNone,
 			},
 			Weight: 1.0,
 		}},

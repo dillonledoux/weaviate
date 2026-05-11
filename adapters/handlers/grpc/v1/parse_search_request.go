@@ -723,14 +723,14 @@ func extractPropertyValueFunction(fv *pb.PropertyValueFunction, condIdx int) (*f
 		return nil, fmt.Errorf("boost condition[%d] property_value: property is required", condIdx)
 	}
 
-	modifier := "none"
+	modifier := filters.PropertyValueModifierNone
 	switch fv.GetModifier() {
 	case pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_LOG1P:
-		modifier = "log1p"
+		modifier = filters.PropertyValueModifierLog1p
 	case pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_SQRT:
-		modifier = "sqrt"
-	case pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_NONE:
-		modifier = "none"
+		modifier = filters.PropertyValueModifierSqrt
+	case pb.PropertyValueModifier_PROPERTY_VALUE_MODIFIER_UNSPECIFIED:
+		modifier = filters.PropertyValueModifierNone
 	}
 
 	return &filters.PropertyValue{
@@ -749,14 +749,14 @@ func extractDecayFunction(d *pb.DecayFunction, condIdx int) (*filters.Decay, err
 		return nil, fmt.Errorf("boost condition[%d] decay: property is required", condIdx)
 	}
 
-	curve := "exp"
+	curve := filters.DecayCurveExp
 	switch d.GetCurve() {
 	case pb.DecayCurve_DECAY_CURVE_GAUSS:
-		curve = "gauss"
+		curve = filters.DecayCurveGauss
 	case pb.DecayCurve_DECAY_CURVE_LINEAR:
-		curve = "linear"
-	case pb.DecayCurve_DECAY_CURVE_EXPONENTIAL:
-		curve = "exp"
+		curve = filters.DecayCurveLinear
+	case pb.DecayCurve_DECAY_CURVE_EXPONENTIAL, pb.DecayCurve_DECAY_CURVE_UNSPECIFIED:
+		curve = filters.DecayCurveExp
 	}
 
 	decayValue := float32(0.5)

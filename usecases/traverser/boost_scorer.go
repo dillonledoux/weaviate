@@ -233,11 +233,11 @@ func precomputePropertyValueScores(results []search.Result, conditions []filters
 	return scores
 }
 
-func applyPropertyValueModifier(val float64, modifier string) float64 {
+func applyPropertyValueModifier(val float64, modifier filters.PropertyValueModifierType) float64 {
 	switch modifier {
-	case "log1p":
+	case filters.PropertyValueModifierLog1p:
 		return math.Log1p(math.Max(0, val))
-	case "sqrt":
+	case filters.PropertyValueModifierSqrt:
 		return math.Sqrt(math.Max(0, val))
 	default:
 		return val
@@ -443,7 +443,7 @@ type parsedDecay struct {
 	offset     float64
 	scale      float64
 	decayValue float64
-	curve      string
+	curve      filters.DecayCurveType
 	valid      bool
 }
 
@@ -459,7 +459,7 @@ func parseDecayParams(d *filters.Decay) parsedDecay {
 	}
 	curve := d.Curve
 	if curve == "" {
-		curve = "exp"
+		curve = filters.DecayCurveExp
 	}
 	return parsedDecay{
 		offset:     offset,
@@ -515,7 +515,7 @@ func computeDistance(decay *filters.Decay, propValue interface{}, nowTime time.T
 	return math.Abs(numVal - originNum), nil
 }
 
-func computeDecayFunction(curve string, dist, offset, scale, decayValue float64) float32 {
+func computeDecayFunction(curve filters.DecayCurveType, dist, offset, scale, decayValue float64) float32 {
 	effectiveDist := math.Max(0, dist-offset)
 	if effectiveDist == 0 {
 		return 1.0
@@ -523,13 +523,13 @@ func computeDecayFunction(curve string, dist, offset, scale, decayValue float64)
 
 	var score float64
 	switch curve {
-	case "exp":
+	case filters.DecayCurveExp:
 		score = math.Pow(decayValue, effectiveDist/scale)
-	case "gauss":
+	case filters.DecayCurveGauss:
 		factor := -math.Log(decayValue)
 		ratio := effectiveDist / scale
 		score = math.Exp(-factor * ratio * ratio)
-	case "linear":
+	case filters.DecayCurveLinear:
 		score = math.Max(0, 1.0-(1.0-decayValue)*effectiveDist/scale)
 	default:
 		score = math.Pow(decayValue, effectiveDist/scale)

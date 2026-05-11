@@ -30,6 +30,24 @@ type Boost struct {
 	OriginalLimit  int
 }
 
+// PropertyValueModifierType is the modifier applied to a property value before normalization.
+type PropertyValueModifierType string
+
+const (
+	PropertyValueModifierNone  PropertyValueModifierType = "none"
+	PropertyValueModifierLog1p PropertyValueModifierType = "log1p"
+	PropertyValueModifierSqrt  PropertyValueModifierType = "sqrt"
+)
+
+// DecayCurveType is the mathematical function used for distance-based decay scoring.
+type DecayCurveType string
+
+const (
+	DecayCurveExp    DecayCurveType = "exp"
+	DecayCurveGauss  DecayCurveType = "gauss"
+	DecayCurveLinear DecayCurveType = "linear"
+)
+
 // BoostCondition represents a single boost condition. Exactly one of
 // Filter, Decay, or PropertyValue must be set.
 type BoostCondition struct {
@@ -44,17 +62,17 @@ type BoostCondition struct {
 // the result set using min-max normalization after applying the modifier.
 type PropertyValue struct {
 	Path     *Path
-	Modifier string // "none" (default), "log1p", "sqrt"
+	Modifier PropertyValueModifierType
 }
 
 // Decay defines a distance-based scoring function that produces a continuous
 // score in [0,1] based on how far a property value is from an origin point.
 type Decay struct {
 	Path       *Path
-	Origin     string  // "now", ISO date, or numeric string
-	Scale      string  // "7d", "20" — required
-	Offset     string  // default "0"
-	Curve      string  // "exp" (default), "gauss", "linear"
+	Origin     string // "now", ISO date, or numeric string
+	Scale      string // "7d", "20" — required
+	Offset     string // default "0"
+	Curve      DecayCurveType
 	DecayValue float32 // score at scale distance, default 0.5
 }
 
@@ -167,7 +185,7 @@ func validateDecay(d *Decay, condIdx int) error {
 	}
 
 	switch d.Curve {
-	case "exp", "gauss", "linear", "":
+	case DecayCurveExp, DecayCurveGauss, DecayCurveLinear, "":
 		// valid
 	default:
 		return fmt.Errorf("boost condition[%d] decay: curve must be one of 'exp', 'gauss', 'linear', got %q", condIdx, d.Curve)
@@ -187,7 +205,7 @@ func validatePropertyValue(fv *PropertyValue, condIdx int) error {
 		return fmt.Errorf("boost condition[%d] property_value: path is required", condIdx)
 	}
 	switch fv.Modifier {
-	case "none", "log1p", "sqrt", "":
+	case PropertyValueModifierNone, PropertyValueModifierLog1p, PropertyValueModifierSqrt, "":
 		// valid
 	default:
 		return fmt.Errorf("boost condition[%d] property_value: modifier must be one of 'none', 'log1p', 'sqrt', got %q", condIdx, fv.Modifier)
