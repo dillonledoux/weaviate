@@ -216,10 +216,17 @@ message RefPropertiesResult {
 }
 
 message Boost {
-  repeated Condition conditions = 1;
-  optional float weight = 2;
-  optional uint32 depth = 3;
-
+  enum PropertyValueModifier {
+    PROPERTY_VALUE_MODIFIER_UNSPECIFIED = 0;
+    PROPERTY_VALUE_MODIFIER_LOG1P = 1;
+    PROPERTY_VALUE_MODIFIER_SQRT = 2;
+  }
+  enum DecayCurve {
+    DECAY_CURVE_UNSPECIFIED = 0;
+    DECAY_CURVE_GAUSS = 1;
+    DECAY_CURVE_LINEAR = 2;
+    DECAY_CURVE_EXPONENTIAL = 3;
+  }
   message Condition {
     oneof condition {
       Filters filter = 1;
@@ -229,25 +236,10 @@ message Boost {
     }
     optional float weight = 3;
   }
-
-  enum PropertyValueModifier {
-    PROPERTY_VALUE_MODIFIER_UNSPECIFIED = 0;
-    PROPERTY_VALUE_MODIFIER_LOG1P = 1;
-    PROPERTY_VALUE_MODIFIER_SQRT = 2;
-  }
-
-  enum DecayCurve {
-    DECAY_CURVE_UNSPECIFIED = 0;
-    DECAY_CURVE_GAUSS = 1;
-    DECAY_CURVE_LINEAR = 2;
-    DECAY_CURVE_EXPONENTIAL = 3;
-  }
-
   message PropertyValueFunction {
     string property = 1;
     optional PropertyValueModifier modifier = 2;
   }
-
   message TimeDecayFunction {
     string property = 1;
     string origin = 2;
@@ -256,7 +248,6 @@ message Boost {
     optional DecayCurve curve = 5;
     optional float decay_value = 6;
   }
-
   message NumericDecayFunction {
     string property = 1;
     double origin = 2;
@@ -265,4 +256,7 @@ message Boost {
     optional DecayCurve curve = 5;
     optional float decay_value = 6;
   }
+  repeated Condition conditions = 1;
+  optional float weight = 2;
+  optional uint32 depth = 3;
 }
